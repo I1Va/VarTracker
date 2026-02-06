@@ -2,8 +2,6 @@
 #include <string_view>
 #include <iostream>
 #include <utility>
-#include "graphvizer.hpp"
-
 #include "graph_builder.hpp"
 
 #define TRACK_VAR(T, name, ...) \
