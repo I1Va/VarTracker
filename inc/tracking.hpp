@@ -3,7 +3,6 @@
 #include <iostream>
 #include <utility>
 
-
 #define TRACK_VAR(T, name, ...) \
     Tracked<T> name{#name, __VA_ARGS__, }
 
