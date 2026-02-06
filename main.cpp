@@ -11,7 +11,8 @@ Tracked<int> make_tracked(int v) {
 }
 
 void consume(Tracked<int> x) {   
-    std::cout << "consume: " << x << "\n";
+    Tracked<int> a = x;
+    // std::cout << "consume: " << x << "\n";
 }
 
 int main() {
@@ -20,6 +21,7 @@ int main() {
 
     TRACK_VAR(int, ta, a);
     TRACK_VAR(int, tb, b);
+    
 
 
     Tracked<int> m1 = std::move(ta);
@@ -33,5 +35,8 @@ int main() {
 
     consume(std::move(m2));
 
-    std::cout << "tb=" << tb << "\n";
+    // std::cout << "tb=" << tb << "\n";
+
+    std::string dot = GraphBuilder::instance().to_dot();
+    std::cout << dot << "\n";    
 }

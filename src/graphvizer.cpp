@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace gpz
+namespace grz
 {
 
 std::ostream& operator<<(std::ostream& stream, const Color color)
@@ -141,4 +141,4 @@ void DotGraph::convert_to_image(const std::string& image_path)
 //     return edge;
 // }
 
-} // namespace gpz
+} // namespace grz

@@ -11,7 +11,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace gpz
+namespace grz
 {
 
 enum class GraphRankdir
@@ -243,4 +243,4 @@ class GraphvizException : public std::runtime_error
     using std::runtime_error::runtime_error;
 };
 
-} // namespace gpz
+} // namespace grz
