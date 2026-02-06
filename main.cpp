@@ -1,42 +1,67 @@
 #include <iostream>
+#include <vector>
 #include "tracking.hpp"
 
-#include <iostream>
-#include <utility>
-
-
-Tracked<int> make_tracked(int v) {
-    TRACK_VAR(int, tmp, v);     
-    return tmp;                  
+// Function taking by value (copy)
+Tracked<int> copy_func(Tracked<int> x) {
+    TRACK_VAR(int, local_copy, x);   // copy ctor
+    local_copy += 10;                // compound assignment
+    return local_copy;               // move ctor when returning
 }
 
-void consume(Tracked<int> x) {   
-    Tracked<int> a = x;
-    // std::cout << "consume: " << x << "\n";
+// Function taking by rvalue reference (move)
+Tracked<int> move_func(Tracked<int>&& x) {
+    TRACK_VAR(int, local_move, std::move(x)); // move ctor
+    local_move *= 2;
+    return local_move;                        // move ctor when returning
+}
+
+// Function taking by lvalue reference
+void ref_func(Tracked<int>& x) {
+    TRACK_VAR(int, local_ref, x); // copy ctor
+    local_ref -= 5;
+}
+
+// Function taking by const reference
+void const_ref_func(const Tracked<int>& x) {
+    TRACK_VAR(int, local_const_ref, x); // copy ctor
 }
 
 int main() {
-    int a = 1;
-    int b = 2;
+    int a = 1, b = 2, c = 3;
 
     TRACK_VAR(int, ta, a);
     TRACK_VAR(int, tb, b);
-    
+    TRACK_VAR(int, tc, c);
 
+    // --- Copy and move examples ---
+    Tracked<int> t1 = copy_func(ta);        // copy_func copies ta
+    Tracked<int> t2 = move_func(std::move(tb)); // move_func moves tb
 
-    Tracked<int> m1 = std::move(ta);
+    // --- Reference functions ---
+    ref_func(tc);               // copies tc inside function
+    const_ref_func(ta);         // copies ta inside function
 
+    // --- Arithmetic operations ---
+    TRACK_VAR(int, td, t1 + t2);  // Tracked + Tracked
+    TRACK_VAR(int, te, td + 100); // Tracked + literal
+    td += te;                      // compound assignment
+    te = td - 50;                  // compound assignment via operator=
 
-    tb = std::move(m1);
+    // --- Mix assignments ---
+    t1 = t2;     // copy assign
+    t2 = std::move(te); // move assign
 
-  
-    Tracked<int> m2 = make_tracked(10);
+    // --- Simple loop with tracked variables ---
+    TRACK_VAR(int, sum, 0);
+    for (Tracked<int> i = 0; i < 10; ++i) {
+        sum += i;  // compound assignment logged
+    }
 
+    // --- More arithmetic chains ---
+    TRACK_VAR(int, result, (t1 + t2) * 2 - t1);
 
-    consume(std::move(m2));
-
-    // std::cout << "tb=" << tb << "\n";
-
+    // --- Output graph ---
     std::string dot = GraphBuilder::instance().to_dot();
-    std::cout << dot << "\n";    
+    std::cout << dot << "\n";
 }

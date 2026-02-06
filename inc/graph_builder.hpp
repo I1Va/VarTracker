@@ -4,7 +4,26 @@
 #include <vector>
 #include <sstream>
 
-struct Node { uint64_t id; std::string_view name; bool named; bool alive = true; };
+struct Node { 
+    uint64_t id; 
+    std::string_view name; 
+    bool named; 
+    bool alive = true; 
+
+    void print(std::ostream &stream, bool show_named_only=false) const {
+        
+        if (show_named_only && !named) return;
+        stream << "  n" << id << " [label=\"";
+        if (named) stream << name << " (id" << id << ")";
+        else stream << "#" << id;
+        if (!alive) stream << " (dead)";
+        stream << "\"";
+        stream << " style=filled fillcolor=" << (alive ? "green" : "red");
+        stream << "];\n";
+    }
+    
+};
+
 struct Event {
     enum Kind { 
         INIT_CONSTRUCT,
@@ -16,10 +35,34 @@ struct Event {
     } kind;
     uint64_t src_id; // 0 if none
     uint64_t dst_id;
+
+    void print(std::ostream &stream) const {
+        if (src_id == 0 && dst_id == 0) return; // nothing to print
+
+        stream << "  n" << src_id << " -> n" << dst_id
+               << " [label=\"";
+        switch (kind) {
+            case INIT_CONSTRUCT:   stream << "init-ctor"; break;
+            case COPY_CONSTRUCT:   stream << "copy-ctor"; break;
+            case MOVE_CONSTRUCT:   stream << "move-ctor"; break;
+            case COPY_ASSIGN:      stream << "copy-assign"; break;
+            case MOVE_ASSIGN:      stream << "move-assign"; break;
+            case DESTRUCT:         stream << "destr"; break;
+            default:               stream << "ctor/destr";
+        }
+        stream << "\"";
+
+        bool copy_state = (kind == COPY_CONSTRUCT || kind == COPY_ASSIGN);
+        stream << " color=" << (copy_state ? "red" : "green");     
+        stream << " penwidth=" << (copy_state ? "5" : "2");         
+        stream << " arrowhead=normal"; 
+        
+        stream << "];\n";
+    }
 };
 
 class GraphBuilder {
-    uint64_t next_id_{1};
+    uint64_t next_id_{2};
     std::unordered_map<uint64_t, Node> nodes_;
     std::vector<Event> events_;
 public:
@@ -44,36 +87,19 @@ public:
     }
 
     std::string to_dot(bool show_named_only=false) const {
-        std::ostringstream o;
-        o << "digraph G {\n";
+        std::ostringstream ostream;
+        ostream << "digraph G {\n";
+        ostream << "  rankdir=LR;\n";
+        
         for (auto &p : nodes_) {
-            const Node &n = p.second;
-            if (show_named_only && !n.named) continue;
-            o << "  n" << n.id << " [label=\"";
-            if (n.named) o << n.name << " (id" << n.id << ")";
-            else o << "#" << n.id;
-            if (!n.alive) o << " (dead)";
-            o << "\"";
-            if (!n.named) o << " style=filled fillcolor=gray95";
-            o << "];\n";
+            const Node &node = p.second;
+            node.print(ostream, show_named_only);
         }
-        for (auto &e : events_) {
-            // if filtering, edges connecting filtered nodes will be omitted here
-            o << "  n" << e.src_id << " -> n" << e.dst_id
-              << " [label=\"";
-            switch (e.kind) {
-              case Event::COPY_CONSTRUCT: o << "copy-ctor"; break;
-              case Event::INIT_CONSTRUCT: o << "init-ctor"; break;
-              case Event::MOVE_CONSTRUCT: o << "move-ctor"; break;
-              case Event::COPY_ASSIGN: o << "copy-assign"; break;
-              case Event::MOVE_ASSIGN: o << "move-assign"; break;
-              case Event::DESTRUCT: o << "destr"; break;
-              default: o << "ctor/destr";
-            }
-            o << "\"];\n";
+        for (auto &edge : events_) {
+            edge.print(ostream);
         }
-        o << "}\n";
-        return o.str();
+        ostream << "}\n";
+        return ostream.str();
     }
 
 private:

@@ -14,8 +14,8 @@ else()
         -Wall
         -Wextra
         -Werror
-        -O0                      # disable optimizations
-        -fno-elide-constructors  # disable copy elision
+        -O3                      # disable optimizations
+        #-fno-elide-constructors  # disable copy elision
         $<$<BOOL:${SANITIZE}>:-fsanitize=address,undefined>
     )
     add_link_options(

@@ -7,7 +7,7 @@
 #include "graph_builder.hpp"
 
 #define TRACK_VAR(T, name, ...) \
-    Tracked<T> name{#name, __VA_ARGS__, }
+    Tracked<T> name(#name, __VA_ARGS__);
 
 static inline void log(const std::string_view name, const char msg[]) {
     if (!name.empty()) {
@@ -16,16 +16,16 @@ static inline void log(const std::string_view name, const char msg[]) {
 }
 
 template <typename T>
-struct Tracked {
+class Tracked {
     uint64_t graph_id_;
     std::string_view name_{};
     T value_;
-
+public:
     Tracked() = delete;
 
     ~Tracked() {
         GraphBuilder::instance().mark_dead(graph_id_);
-        GraphBuilder::instance().add_event(Event::DESTRUCT, graph_id_, 0);
+        GraphBuilder::instance().add_event(Event::DESTRUCT, graph_id_, 1);
     }
 
     Tracked(const Tracked& other)
@@ -34,13 +34,13 @@ struct Tracked {
         GraphBuilder::instance().add_event(Event::COPY_CONSTRUCT, 0, graph_id_);
     }   
 
-    Tracked(std::string_view name, T& value)
+    Tracked(std::string_view name, const T& value)
         : name_(name), value_(value) {
         graph_id_ = GraphBuilder::instance().make_node(name_);
         GraphBuilder::instance().add_event(Event::INIT_CONSTRUCT, 0, graph_id_);
     }
 
-    Tracked(T& value)
+    Tracked(const T& value)
         : value_(value) {
         graph_id_ = GraphBuilder::instance().make_node(name_);
         GraphBuilder::instance().add_event(Event::COPY_CONSTRUCT, 0, graph_id_);
@@ -65,21 +65,88 @@ struct Tracked {
         GraphBuilder::instance().add_event(Event::MOVE_ASSIGN, other.graph_id_, graph_id_);
         GraphBuilder::instance().mark_dead(other.graph_id_);
         return *this;
+        
     }
 
     operator T() const { return value_; }
-    T& get() { return value_; }
-    const T& get() const { return value_; }
+
+    friend Tracked operator+(const Tracked& lhs, const Tracked& rhs) {
+        TRACK_VAR(T, tmp, lhs.value_ + rhs.value_);
+        return tmp;
+    }
+    friend Tracked operator-(const Tracked& lhs, const Tracked& rhs) {
+        TRACK_VAR(T, tmp, lhs.value_ - rhs.value_);
+        return tmp;
+    }
+    friend Tracked operator*(const Tracked& lhs, const Tracked& rhs) {
+        TRACK_VAR(T, tmp, lhs.value_ * rhs.value_);
+        return tmp;
+    }
+    friend Tracked operator/(const Tracked& lhs, const Tracked& rhs) {
+        TRACK_VAR(T, tmp, lhs.value_ / rhs.value_);
+        return tmp;
+    }
+
+    // Tracked op T
+    friend Tracked operator+(const Tracked& lhs, const T& rhs) {
+        TRACK_VAR(T, tmp, lhs.value_ + rhs);
+        return tmp;
+    }
+    friend Tracked operator-(const Tracked& lhs, const T& rhs) {
+        TRACK_VAR(T, tmp, lhs.value_ - rhs);
+        return tmp;
+    }
+    friend Tracked operator*(const Tracked& lhs, const T& rhs) {
+        TRACK_VAR(T, tmp, lhs.value_ * rhs);
+        return tmp;
+    }
+    friend Tracked operator/(const Tracked& lhs, const T& rhs) {
+        TRACK_VAR(T, tmp, lhs.value_ / rhs);
+        return tmp;
+    }
+
+    // T op Tracked
+    friend Tracked operator+(const T& lhs, const Tracked& rhs) {
+        TRACK_VAR(T, tmp, lhs + rhs.value_);
+        return tmp;
+    }
+    friend Tracked operator-(const T& lhs, const Tracked& rhs) {
+        TRACK_VAR(T, tmp, lhs - rhs.value_);
+        return tmp;
+    }
+    friend Tracked operator*(const T& lhs, const Tracked& rhs) {
+        TRACK_VAR(T, tmp, lhs * rhs.value_);
+        return tmp;
+    }
+    friend Tracked operator/(const T& lhs, const Tracked& rhs) {
+        TRACK_VAR(T, tmp, lhs / rhs.value_);
+        return tmp;
+    }
+
+    // Compound assignments
+    Tracked& operator+=(const Tracked& rhs) { value_ += rhs.value_; GraphBuilder::instance().add_event(Event::COPY_ASSIGN, rhs.graph_id_, graph_id_); return *this; }
+    Tracked& operator-=(const Tracked& rhs) { value_ -= rhs.value_; GraphBuilder::instance().add_event(Event::COPY_ASSIGN, rhs.graph_id_, graph_id_); return *this; }
+    Tracked& operator*=(const Tracked& rhs) { value_ *= rhs.value_; GraphBuilder::instance().add_event(Event::COPY_ASSIGN, rhs.graph_id_, graph_id_); return *this; }
+    Tracked& operator/=(const Tracked& rhs) { value_ /= rhs.value_; GraphBuilder::instance().add_event(Event::COPY_ASSIGN, rhs.graph_id_, graph_id_); return *this; }
+
+    Tracked& operator+=(const T& rhs) { value_ += rhs; return *this; }
+    Tracked& operator-=(const T& rhs) { value_ -= rhs; return *this; }
+    Tracked& operator*=(const T& rhs) { value_ *= rhs; return *this; }
+    Tracked& operator/=(const T& rhs) { value_ /= rhs; return *this; }
+
+    // Increment/Decrement
+    Tracked& operator++() { ++value_; return *this; }
+    Tracked operator++(int) { Tracked tmp(*this); ++value_; return tmp; }
+    Tracked& operator--() { --value_; return *this; }
+    Tracked operator--(int) { Tracked tmp(*this); --value_; return tmp; }
+
+    std::istream& operator>>(std::istream& is) {
+        return is >> value_;
+    }
+
+    std::ostream& operator<<(std::ostream& os) {
+        return os << value_;
+    }
 };
 
-
-template <typename T>
-std::istream& operator>>(std::istream& is, Tracked<T>& x) {
-    return is >> x.get();
-}
-
-template <typename T>
-std::ostream& operator<<(std::ostream& os, const Tracked<T>& x) {
-    return os << x.get();
-}
 
