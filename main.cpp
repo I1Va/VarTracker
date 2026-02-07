@@ -98,6 +98,5 @@ int main() {
     Tracked<int> s1 = add_ref(a, b);
     Tracked<int> s2 = add_val(a, b);
 
-    std::string dot = GraphBuilder::instance().to_dot();
-    std::cout << dot << "\n";
+    GraphBuilder::instance().to_image("graph.png", /*show_named_only*/false);
 }

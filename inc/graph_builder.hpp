@@ -3,6 +3,8 @@
 #include <unordered_map>
 #include <vector>
 #include <sstream>
+#include <fstream>
+#include <iostream>
 
 struct Node { 
     uint64_t id; 
@@ -101,6 +103,27 @@ public:
 
         ostream << "}\n";
         return ostream.str();
+    }
+
+    void to_image(std::string_view image_name, bool show_named_only=false) {
+        std::string temp_dot_filename = std::string(image_name) + std::string(".dot");
+        {
+            std::ofstream image{temp_dot_filename};
+            if (!image) {
+                std::cerr << "Error creating image!\n";
+                return;
+            }
+
+            image << to_dot(show_named_only);
+        }
+       
+        std::string command = std::string("dot -Tpng ") + std::string(image_name) + std::string(".dot") + std::string(" -o ") + std::string(image_name);
+        int ret = system(command.c_str());
+        if (ret != 0) {
+            std::cerr << "Failed to build graph. Return code : " << ret << "\n";
+        }
+    
+        std::remove(temp_dot_filename.c_str());
     }
 
 private:
