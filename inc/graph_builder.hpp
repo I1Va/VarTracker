@@ -11,17 +11,16 @@ struct Node {
     bool alive = true; 
 
     void print(std::ostream &stream, bool show_named_only=false) const {
-        
         if (show_named_only && !named) return;
+
         stream << "  n" << id << " [label=\"";
         if (named) stream << name << " (id" << id << ")";
         else stream << "#" << id;
         if (!alive) stream << " (dead)";
         stream << "\"";
-        stream << " style=filled fillcolor=" << (alive ? "green" : "red");
+        stream << " shape=rect style=filled fillcolor=" << (alive ? "lightgreen" : "lightcoral");
         stream << "];\n";
     }
-    
 };
 
 struct Event {
@@ -31,13 +30,14 @@ struct Event {
         MOVE_CONSTRUCT, 
         COPY_ASSIGN, 
         MOVE_ASSIGN, 
-        DESTRUCT 
+        DESTRUCT
     } kind;
-    uint64_t src_id; // 0 if none
+
+    uint64_t src_id; 
     uint64_t dst_id;
 
     void print(std::ostream &stream) const {
-        if (src_id == 0 && dst_id == 0) return; // nothing to print
+        if (src_id == 0 && dst_id == 0) return;
 
         stream << "  n" << src_id << " -> n" << dst_id
                << " [label=\"";
@@ -54,17 +54,17 @@ struct Event {
 
         bool copy_state = (kind == COPY_CONSTRUCT || kind == COPY_ASSIGN);
         stream << " color=" << (copy_state ? "red" : "green");     
-        stream << " penwidth=" << (copy_state ? "5" : "2");         
+        stream << " penwidth=" << (copy_state ? "3" : "2");         
         stream << " arrowhead=normal"; 
-        
         stream << "];\n";
     }
 };
 
 class GraphBuilder {
-    uint64_t next_id_{2};
+    uint64_t next_id_{1};
     std::unordered_map<uint64_t, Node> nodes_;
     std::vector<Event> events_;
+
 public:
     static GraphBuilder& instance() {
         static GraphBuilder g;
@@ -90,19 +90,19 @@ public:
         std::ostringstream ostream;
         ostream << "digraph G {\n";
         ostream << "  rankdir=LR;\n";
-        
-        for (auto &p : nodes_) {
-            const Node &node = p.second;
-            node.print(ostream, show_named_only);
-        }
-        for (auto &edge : events_) {
-            edge.print(ostream);
-        }
+        ostream << "  node [shape=rect style=filled fontname=\"Courier\"];\n";
+
+        ostream << "  splines=polyline;\n";  
+        ostream << "  nodesep=1.0;\n";       
+        ostream << "  ranksep=1.5;\n";      
+    
+        for (auto &[id, node] : nodes_) node.print(ostream, show_named_only);
+        for (auto &edge : events_) edge.print(ostream);
+
         ostream << "}\n";
         return ostream.str();
     }
 
 private:
     GraphBuilder() = default;
-
 };
