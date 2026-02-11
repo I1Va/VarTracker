@@ -36,6 +36,12 @@ public:
         graph_id_ = GraphBuilder::instance().make_node(name_);
     }
 
+    Tracked(std::string_view name, const Tracked& other)
+        : name_(name), value_(other.value_) {
+        graph_id_ = GraphBuilder::instance().make_node(name_);
+        GraphBuilder::instance().add_event(Event::COPY_CONSTRUCT, other.graph_id_, graph_id_);
+    }
+
     Tracked(const T& value)
         : value_(value) {
         graph_id_ = GraphBuilder::instance().make_node(name_);
@@ -54,6 +60,13 @@ public:
         GraphBuilder::instance().add_event(Event::MOVE_CONSTRUCT, other.graph_id_, graph_id_);
         GraphBuilder::instance().mark_dead(other.graph_id_);
     }
+    
+    Tracked(std::string_view name, Tracked&& other)
+        : name_(name), value_(std::move(other.value_)) {
+        graph_id_ = GraphBuilder::instance().make_node(name_);
+        GraphBuilder::instance().add_event(Event::MOVE_CONSTRUCT, other.graph_id_, graph_id_);
+        GraphBuilder::instance().mark_dead(other.graph_id_);
+    }
 
     Tracked& operator=(Tracked&& other) noexcept {
         value_ = std::move(other.value_);
@@ -63,8 +76,16 @@ public:
         
     }
 
-    operator T() const { return value_; }
+    // operator T() const { return value_; }
 
+    // Tracked<T> vs Tracked<T>
+    friend bool operator==(const Tracked& lhs, const Tracked& rhs) { return lhs.value_ == rhs.value_; }
+    friend bool operator!=(const Tracked& lhs, const Tracked& rhs) { return lhs.value_ != rhs.value_; }
+    friend bool operator<(const Tracked& lhs, const Tracked& rhs)  { return lhs.value_ <  rhs.value_; }
+    friend bool operator>(const Tracked& lhs, const Tracked& rhs)  { return lhs.value_ >  rhs.value_; }
+    friend bool operator<=(const Tracked& lhs, const Tracked& rhs) { return lhs.value_ <= rhs.value_; }
+    friend bool operator>=(const Tracked& lhs, const Tracked& rhs) { return lhs.value_ >= rhs.value_; }
+        
     friend Tracked operator+(const Tracked& lhs, const Tracked& rhs) {
         Tracked res("+", lhs.value_ + rhs.value_);
         GraphBuilder::instance().add_event(Event::COPY_ASSIGN, lhs.graph_id_, res.graph_id_);
@@ -94,6 +115,13 @@ public:
     }
 
     // Tracked op T
+    friend bool operator==(const Tracked& lhs, const T& rhs) { return lhs.value_ == rhs; }
+    friend bool operator!=(const Tracked& lhs, const T& rhs) { return lhs.value_ != rhs; }
+    friend bool operator<(const Tracked& lhs, const T& rhs)  { return lhs.value_ <  rhs; }
+    friend bool operator>(const Tracked& lhs, const T& rhs)  { return lhs.value_ >  rhs; }
+    friend bool operator<=(const Tracked& lhs, const T& rhs) { return lhs.value_ <= rhs; }
+    friend bool operator>=(const Tracked& lhs, const T& rhs) { return lhs.value_ >= rhs; }
+
     friend Tracked operator+(const Tracked& lhs, const T& rhs) {
         Tracked unnamed_operand(rhs);
 
@@ -127,6 +155,13 @@ public:
     }
 
     // T op Tracked
+    friend bool operator==(const T& lhs, const Tracked& rhs) { return lhs == rhs.value_; }
+    friend bool operator!=(const T& lhs, const Tracked& rhs) { return lhs != rhs.value_; }
+    friend bool operator<(const T& lhs, const Tracked& rhs)  { return lhs <  rhs.value_; }
+    friend bool operator>(const T& lhs, const Tracked& rhs)  { return lhs >  rhs.value_; }
+    friend bool operator<=(const T& lhs, const Tracked& rhs) { return lhs <= rhs.value_; }
+    friend bool operator>=(const T& lhs, const Tracked& rhs) { return lhs >= rhs.value_; }
+
     friend Tracked operator+(const T& lhs, const Tracked& rhs) {
         Tracked unnamed_operand(lhs);
         Tracked res("+", lhs + rhs.value_);
@@ -207,5 +242,3 @@ public:
         return os << value_;
     }
 };
-
-
