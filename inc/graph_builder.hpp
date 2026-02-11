@@ -24,7 +24,6 @@ struct Node {
         stream << "];\n";
     }
 };
-
 struct Event {
     enum Kind { 
         INIT_CONSTRUCT,
@@ -32,35 +31,48 @@ struct Event {
         MOVE_CONSTRUCT, 
         COPY_ASSIGN, 
         MOVE_ASSIGN, 
-        DESTRUCT
+        DESTRUCT,
+        READ
     } kind;
 
     uint64_t src_id; 
     uint64_t dst_id;
 
+    static bool is_copy_kind(const Kind k) { return k == COPY_CONSTRUCT || k == COPY_ASSIGN; }
+    static bool is_move_kind(const Kind k) { return k == MOVE_CONSTRUCT || k == MOVE_ASSIGN; }
+
     void print(std::ostream &stream) const {
         if (src_id == 0 && dst_id == 0) return;
 
-        stream << "  n" << src_id << " -> n" << dst_id
-               << " [label=\"";
+        stream << "  n" << src_id << " -> n" << dst_id << " [label=\"";
         switch (kind) {
-            case INIT_CONSTRUCT:   stream << "init-ctor"; break;
-            case COPY_CONSTRUCT:   stream << "copy-ctor"; break;
-            case MOVE_CONSTRUCT:   stream << "move-ctor"; break;
-            case COPY_ASSIGN:      stream << "copy-assign"; break;
-            case MOVE_ASSIGN:      stream << "move-assign"; break;
-            case DESTRUCT:         stream << "destr"; break;
-            default:               stream << "ctor/destr";
+            case INIT_CONSTRUCT: stream << "init-ctor"; break;
+            case COPY_CONSTRUCT: stream << "copy-ctor"; break;
+            case MOVE_CONSTRUCT: stream << "move-ctor"; break;
+            case COPY_ASSIGN:    stream << "copy-assign"; break;
+            case MOVE_ASSIGN:    stream << "move-assign"; break;
+            case DESTRUCT:       stream << "destr"; break;
+            case READ:           stream << "read"; break;
+            default:             stream << "other";
         }
         stream << "\"";
 
-        bool copy_state = (kind == COPY_CONSTRUCT || kind == COPY_ASSIGN);
-        stream << " color=" << (copy_state ? "red" : "green");     
-        stream << " penwidth=" << (copy_state ? "3" : "2");         
-        stream << " arrowhead=normal"; 
+        const char* color;
+        size_t penwidth;
+        const char* style = "solid";
+
+        if (is_copy_kind(kind)) { color = "red"; penwidth = 3; style = "solid"; }
+        else if (is_move_kind(kind)) { color = "green"; penwidth = 2; style = "solid"; }
+        else { color = "gray"; penwidth = 1; style = "dotted"; }
+
+        stream << " color=" << color;
+        stream << " penwidth=" << penwidth;
+        stream << " style=" << style;
+        stream << " arrowhead=normal";
         stream << "];\n";
     }
 };
+
 
 class GraphBuilder {
     uint64_t next_id_{1};
@@ -103,6 +115,19 @@ public:
 
         ostream << "}\n";
         return ostream.str();
+    }
+
+    void to_dot(std::string_view file_name, bool show_named_only=false) {
+        std::string dot_file_name = std::string(file_name) + std::string(".dot");
+        {
+            std::ofstream dot_file{dot_file_name};
+            if (!dot_file) {
+                std::cerr << "Error creating dot file!\n";
+                return;
+            }
+
+            dot_file << to_dot(show_named_only);
+        }
     }
 
     void to_image(std::string_view image_name, bool show_named_only=false) {

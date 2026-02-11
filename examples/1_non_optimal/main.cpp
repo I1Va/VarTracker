@@ -33,11 +33,16 @@ Tracked<int> pipeline(Tracked<int> x) {
 int main() {
     TRACK_VAR(int, x, 3);
     TRACK_VAR(int, y, 4);
-    TRACK_VAR(int, z, 2);
+    //TRACK_VAR(int, z, 2);
 
-    TRACK_VAR(int, r1, expr(x, y, z));
-    TRACK_VAR(int, r2, pipeline(r1));
-    TRACK_VAR(int, r3, add(r1, r2));
+ 
+    TRACK_VAR(int, r1, mul(x, y));
+
+    // TRACK_VAR(int, r1, expr(x, y, z));
+
+
+    // TRACK_VAR(int, r2, pipeline(r1));
+    // TRACK_VAR(int, r3, add(r1, r2));
 
     GraphBuilder::instance().to_image("graph.png", false);
     return 0;
