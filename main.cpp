@@ -2,66 +2,55 @@
 #include <vector>
 #include "tracking.hpp"
 
-void swap_val(Tracked<int> a, Tracked<int> b) {
-    TRACK_VAR(int, tmp, a);
-    a = b;
-    b = tmp;
+typedef Tracked<int> Int;
+
+void compAndSwap(std::vector<Int> arr, Int i, Int j, Int direction) {
+    if ((direction == 1 && arr[i] > arr[j]) || (direction == 0 && arr[i] < arr[j])) {
+        std::swap(arr[i], arr[j]);
+    }
 }
 
-std::vector<Tracked<int>> bubble_sort(std::vector<Tracked<int>> arr) {
-    for (size_t i = 0; i < arr.size(); ++i) {
-        for (size_t j = 0; j + 1 < arr.size(); ++j) {
-            if (arr[j] > arr[j + 1]) {
-                swap_val(arr[j], arr[j + 1]);
-            }
+// Recursively merge a bitonic sequence into sorted order
+void bitonicMerge(std::vector<Int> arr, Int low, Int cnt, Int direction) {
+    if (cnt > 1) {
+        Int k = cnt / Int(2);
+        for (Int i = low; i < low + k; i++) {
+            compAndSwap(arr, i, i + k, direction);
         }
+        bitonicMerge(arr, low, k, direction);
+        bitonicMerge(arr, low + k, k, direction);
     }
-    return arr;
 }
 
-Tracked<int> linear_search(std::vector<Tracked<int>> arr, Tracked<int> key) {
-    for (size_t i = 0; i < arr.size(); ++i) {
-        if (arr[i] == key) {
-            TRACK_VAR(int, idx, (int)i);
-            return idx;
-        }
+// Recursively build bitonic sequences and sort them
+void bitonicSort(std::vector<Int> arr, Int low, Int cnt, Int direction) {
+    if (cnt > 1) {
+        Int k = cnt / Int(2);
+
+        // Sort first half ascending
+        bitonicSort(arr, low, k, 1);
+
+        // Sort second half descending
+        bitonicSort(arr, low + k, k, 0);
+
+        // Merge entire sequence in given direction
+        bitonicMerge(arr, low, cnt, direction);
     }
-    TRACK_VAR(int, nf, -1);
-    return nf;
 }
 
-Tracked<int> sum_all(std::vector<Tracked<int>> arr) {
-    TRACK_VAR(int, acc, 0);
-    for (size_t i = 0; i < arr.size(); ++i) {
-        acc = acc + arr[i];
-    }
-    return acc;
+// function to sort the entire array
+void sortArray(std::vector<Int>& arr) {
+    
+    // up = 1 → ascending, up = 0 → descending
+    Int up = 1; 
+    bitonicSort(arr, 0, arr.size(), up);
 }
 
-std::vector<Tracked<int>> duplicate(std::vector<Tracked<int>> arr) {
-    std::vector<Tracked<int>> out;
-    for (size_t i = 0; i < arr.size(); ++i) {
-        out.push_back(arr[i]);
-    }
-    return out;
-}
 
 int main() {
-    std::vector<int> raw = {7, 2, 9, 1, 5};
+    std::vector<Int> arr = {7, 3, 4, 8};
 
-    std::vector<Tracked<int>> data;
-    for (size_t i = 0; i < raw.size(); ++i) {
-        TRACK_VAR(int, x, raw[i]);
-        data.push_back(x);
-    }
-
-    std::vector<Tracked<int>> copy1 = duplicate(data);
-    std::vector<Tracked<int>> sorted = bubble_sort(copy1);
-
-    TRACK_VAR(int, key, 5);
-    Tracked<int> pos = linear_search(sorted, key);
-
-    Tracked<int> total = sum_all(sorted);
-
-    GraphBuilder::instance().to_image("graph.png", false);
+    sortArray(arr);
+    GraphBuilder::instance().to_image("graph");
+    return 0;
 }

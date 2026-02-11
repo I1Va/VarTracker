@@ -1,7 +1,7 @@
 #include <iostream>
 #include "tracking.hpp"
 
-Tracked<int> add(Tracked<int> a, Tracked<int> b) {
+Tracked<int> add(Tracked<int> &a, Tracked<int> &b) {
     TRACK_VAR(int, add_r, a + b);
     return add_r;
 }
@@ -31,12 +31,12 @@ Tracked<int> pipeline(Tracked<int> x) {
 }
 
 int main() {
-    TRACK_VAR(int, x, 3);
-    TRACK_VAR(int, y, 4);
-    //TRACK_VAR(int, z, 2);
+    TRACK_VAR(int, x, 1);
+    TRACK_VAR(int, y, 2);
+    TRACK_VAR(int, z, add(x, y));
 
  
-    TRACK_VAR(int, r1, mul(x, y));
+    // TRACK_VAR(int, r1, mul(x, y));
 
     // TRACK_VAR(int, r1, expr(x, y, z));
 
@@ -44,6 +44,6 @@ int main() {
     // TRACK_VAR(int, r2, pipeline(r1));
     // TRACK_VAR(int, r3, add(r1, r2));
 
-    GraphBuilder::instance().to_image("graph.png", false);
+    GraphBuilder::instance().to_image("graph");
     return 0;
 }

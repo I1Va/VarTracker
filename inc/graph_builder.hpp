@@ -6,17 +6,112 @@
 #include <fstream>
 #include <iostream>
 
-struct Node { 
-    uint64_t id; 
-    std::string_view name; 
-    bool named; 
-    bool alive = true; 
+class Edge {
+protected:
+    std::string_view label_;
+    uint64_t src_id_; 
+    uint64_t dst_id_;
 
-    void print(std::ostream &stream, bool show_named_only=false) const {
-        if (show_named_only && !named) return;
+    const char *color_ = "black";
+    size_t penwidth_ = 1;
+    const char *style_ = "solid";
 
-        stream << "  n" << id << " [label=\"";
-        if (named) stream << name << " (id" << id << ")";
+public:
+    virtual ~Edge() = default;   
+    Edge(const std::string_view label, const uint64_t src_id, const uint64_t dst_id): 
+        label_(label), src_id_(src_id), dst_id_(dst_id) {}
+    
+    void print(std::ostream &stream) const {
+        if (src_id_ == 0 && dst_id_ == 0) return;
+
+        stream << "  n" << src_id_ << " -> n" << dst_id_;
+        stream << " [label=\"" << label_ << "\"";
+        stream << " color=" << color_;
+        stream << " penwidth=" << penwidth_;
+        stream << " style=" << style_;
+        stream << " arrowhead=normal";
+        stream << "];\n";
+    }
+};
+
+class CopyEdge final : public Edge {
+    enum kind {
+        CONSTRUCT,
+        ASSIGN,
+    };
+
+private:
+    CopyEdge(std::string_view label, const uint64_t src_id, const uint64_t dst_id): Edge(label, src_id, dst_id) {
+        color_ = "red";
+        penwidth_ = 3;
+        style_ = "solid";
+    }
+
+      const char *stkerr_get_bit_descr(stk_err err) {
+    #define BIT_DESCR_(code) case code : return #code;
+    switch (err) {
+        BIT_DESCR_(STK_ERR_OK)
+        BIT_DESCR_(STK_ERR_UNKNOWN)
+        BIT_DESCR_(STK_ERR_CALLOC)
+        BIT_DESCR_(STK_ERR_NULLPTR)
+        BIT_DESCR_(STK_ERR_STAT)
+        BIT_DESCR_(STK_ERR_INPUT_DATA)
+        BIT_DESCR_(STK_ERR_MEM)
+        BIT_DESCR_(STK_ERR_FILE_CLOSE)
+        BIT_DESCR_(STK_ERR_FILE_OPEN)
+        BIT_DESCR_(STK_ERR_ARGS)
+        BIT_DESCR_(STK_ERR_WRONG_COEF)
+        BIT_DESCR_(STK_ERR_INIT)
+        BIT_DESCR_(STK_ERR_STACK_NULLPTR)
+        BIT_DESCR_(STK_ERR_STACK_CONT_NULLPTR)
+        BIT_DESCR_(STK_ERR_STACK_OVERFLOW)
+        BIT_DESCR_(STK_ERR_STACK_POP)
+        BIT_DESCR_(STK_ERR_REALLOC)
+        BIT_DESCR_(STK_ERR_CANARY_LEFT)
+        BIT_DESCR_(STK_ERR_CANARY_MID)
+        BIT_DESCR_(STK_ERR_CANARY_RIGHT)
+        BIT_DESCR_(STK_ERR_CANARY_STK_RIGHT)
+        BIT_DESCR_(STK_ERR_HASH_STACK_DATA_MISMATCH)
+        BIT_DESCR_(STK_ERR_CANARY_STK_LEFT)
+        BIT_DESCR_(STK_ERR_SYSTEM)
+        BIT_DESCR_(STK_ERR_STACK_LAST_ELEM)
+        BIT_DESCR_(STK_ERR_HASH_STACK_STRUCT_MISMATCH)
+        BIT_DESCR_(STK_ERR_INVALID_INDEX)
+
+        default: return "VERY STRANGE ERROR:(";
+    }
+    #undef BIT_DESCR_
+}
+
+};
+
+class OperatorEdge : public Edge {
+    OperatorEdge(std::string_view label, const uint64_t src_id, const uint64_t dst_id): Edge(label, src_id, dst_id) {
+        color_ = "gray";
+        penwidth_ = 1;
+        style_ = "dotted";
+    }
+};
+
+class MoveEdge : public Edge {
+    MoveEdge(std::string_view label, const uint64_t src_id, const uint64_t dst_id): Edge(label, src_id, dst_id) {
+        color_ = "green";
+        penwidth_ = 2;
+        style_ = "solid";
+    }
+};
+
+class Node { 
+protected:
+    std::string_view type;
+    uint64_t id;
+    std::string_view name;  
+    uintptr_t addr; 
+
+public:
+    void print(std::ostream &stream) const {
+        stream << "  n" << id;
+        stream << " [label=\"" << name << " (id" << id << ")";
         else stream << "#" << id;
         if (!alive) stream << " (dead)";
         stream << "\"";
@@ -24,55 +119,6 @@ struct Node {
         stream << "];\n";
     }
 };
-struct Event {
-    enum Kind { 
-        INIT_CONSTRUCT,
-        COPY_CONSTRUCT, 
-        MOVE_CONSTRUCT, 
-        COPY_ASSIGN, 
-        MOVE_ASSIGN, 
-        DESTRUCT,
-        READ
-    } kind;
-
-    uint64_t src_id; 
-    uint64_t dst_id;
-
-    static bool is_copy_kind(const Kind k) { return k == COPY_CONSTRUCT || k == COPY_ASSIGN; }
-    static bool is_move_kind(const Kind k) { return k == MOVE_CONSTRUCT || k == MOVE_ASSIGN; }
-
-    void print(std::ostream &stream) const {
-        if (src_id == 0 && dst_id == 0) return;
-
-        stream << "  n" << src_id << " -> n" << dst_id << " [label=\"";
-        switch (kind) {
-            case INIT_CONSTRUCT: stream << "init-ctor"; break;
-            case COPY_CONSTRUCT: stream << "copy-ctor"; break;
-            case MOVE_CONSTRUCT: stream << "move-ctor"; break;
-            case COPY_ASSIGN:    stream << "copy-assign"; break;
-            case MOVE_ASSIGN:    stream << "move-assign"; break;
-            case DESTRUCT:       stream << "destr"; break;
-            case READ:           stream << "read"; break;
-            default:             stream << "other";
-        }
-        stream << "\"";
-
-        const char* color;
-        size_t penwidth;
-        const char* style = "solid";
-
-        if (is_copy_kind(kind)) { color = "red"; penwidth = 3; style = "solid"; }
-        else if (is_move_kind(kind)) { color = "green"; penwidth = 2; style = "solid"; }
-        else { color = "gray"; penwidth = 1; style = "dotted"; }
-
-        stream << " color=" << color;
-        stream << " penwidth=" << penwidth;
-        stream << " style=" << style;
-        stream << " arrowhead=normal";
-        stream << "];\n";
-    }
-};
-
 
 class GraphBuilder {
     uint64_t next_id_{1};
@@ -85,7 +131,7 @@ public:
         return g;
     }
 
-    uint64_t make_node(const std::string_view name) {
+    uint64_t make_node(const std::string_view name="") {
         uint64_t id = next_id_++;
         nodes_.emplace(id, Node{id, name, !name.empty(), true});
         return id;
@@ -100,7 +146,7 @@ public:
         events_.push_back(Event{k, src, dst});
     }
 
-    std::string to_dot(bool show_named_only=false) const {
+    std::string to_dot() const {
         std::ostringstream ostream;
         ostream << "digraph G {\n";
         ostream << "  rankdir=LR;\n";
@@ -110,27 +156,14 @@ public:
         ostream << "  nodesep=1.0;\n";       
         ostream << "  ranksep=1.5;\n";      
     
-        for (auto &[id, node] : nodes_) node.print(ostream, show_named_only);
+        for (auto &[id, node] : nodes_) node.print(ostream);
         for (auto &edge : events_) edge.print(ostream);
 
         ostream << "}\n";
         return ostream.str();
     }
 
-    void to_dot(std::string_view file_name, bool show_named_only=false) {
-        std::string dot_file_name = std::string(file_name) + std::string(".dot");
-        {
-            std::ofstream dot_file{dot_file_name};
-            if (!dot_file) {
-                std::cerr << "Error creating dot file!\n";
-                return;
-            }
-
-            dot_file << to_dot(show_named_only);
-        }
-    }
-
-    void to_image(std::string_view image_name, bool show_named_only=false) {
+    void to_image(std::string_view image_name, bool remove_dotfile=true) {
         std::string temp_dot_filename = std::string(image_name) + std::string(".dot");
         {
             std::ofstream image{temp_dot_filename};
@@ -139,16 +172,16 @@ public:
                 return;
             }
 
-            image << to_dot(show_named_only);
+            image << to_dot();
         }
        
-        std::string command = std::string("dot -Tpng ") + std::string(image_name) + std::string(".dot") + std::string(" -o ") + std::string(image_name);
+        std::string command = std::string("dot -Tpng ") + std::string(image_name) + std::string(".dot") + std::string(" -o ") + std::string(image_name) + ".png";
         int ret = system(command.c_str());
         if (ret != 0) {
             std::cerr << "Failed to build graph. Return code : " << ret << "\n";
         }
-    
-        std::remove(temp_dot_filename.c_str());
+        
+        if (remove_dotfile) std::remove(temp_dot_filename.c_str());
     }
 
 private:
