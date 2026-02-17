@@ -5,117 +5,140 @@
 #include <sstream>
 #include <fstream>
 #include <iostream>
+#include <memory>
+#include <functional>
 
 class Edge {
-protected:
-    std::string_view label_;
-    uint64_t src_id_; 
-    uint64_t dst_id_;
-
-    const char *color_ = "black";
-    size_t penwidth_ = 1;
-    const char *style_ = "solid";
 
 public:
-    virtual ~Edge() = default;   
-    Edge(const std::string_view label, const uint64_t src_id, const uint64_t dst_id): 
-        label_(label), src_id_(src_id), dst_id_(dst_id) {}
-    
+    enum Kind {
+        CONSTRUCT,
+        ASSIGN,
+        ADD,
+        SUB,
+        MUL,
+        DIV,
+        GT,
+        LT,
+        GE,
+        LE,
+        EQ,
+        NE,
+    };
+
+    static const char *get_kind_label(const Kind kind) {
+        #define EDGE_KIND_DESCR_(code) case code : return #code;
+        switch (kind) {
+            EDGE_KIND_DESCR_(CONSTRUCT)
+            EDGE_KIND_DESCR_(ASSIGN)
+            EDGE_KIND_DESCR_(ADD)
+            EDGE_KIND_DESCR_(SUB)
+            EDGE_KIND_DESCR_(MUL)
+            EDGE_KIND_DESCR_(DIV)
+            EDGE_KIND_DESCR_(GT)
+            EDGE_KIND_DESCR_(LT)
+            EDGE_KIND_DESCR_(GE)
+            EDGE_KIND_DESCR_(LE)
+            EDGE_KIND_DESCR_(EQ)
+            EDGE_KIND_DESCR_(NE)
+        
+            default: return "Unknown";
+        }
+        #undef EDGE_KIND_DESCR_
+    }
+
+    virtual ~Edge() = default;       
+    virtual void print(std::ostream &stream) const = 0;
+    Edge(const Kind kind, const uint64_t src_id, const uint64_t dst_id): 
+        kind_(kind), src_id_(src_id), dst_id_(dst_id) {}
+
+protected:
+    Kind kind_;
+    uint64_t src_id_; 
+    uint64_t dst_id_;
+};
+
+class CopyEdge final : public Edge {
+public:
+    using Edge::Edge;
+
     void print(std::ostream &stream) const {
         if (src_id_ == 0 && dst_id_ == 0) return;
+        const char color[] = "red";
+        const size_t penwidth = 3;
+        const char style[] = "solid";
 
         stream << "  n" << src_id_ << " -> n" << dst_id_;
-        stream << " [label=\"" << label_ << "\"";
-        stream << " color=" << color_;
-        stream << " penwidth=" << penwidth_;
-        stream << " style=" << style_;
+        stream << " [label=\"" << get_kind_label(kind_) << "\"";
+        stream << " color="    << color;
+        stream << " penwidth=" << penwidth;
+        stream << " style="    << style;
         stream << " arrowhead=normal";
         stream << "];\n";
     }
 };
 
-class CopyEdge final : public Edge {
-    enum kind {
-        CONSTRUCT,
-        ASSIGN,
-    };
-
-private:
-    CopyEdge(std::string_view label, const uint64_t src_id, const uint64_t dst_id): Edge(label, src_id, dst_id) {
-        color_ = "red";
-        penwidth_ = 3;
-        style_ = "solid";
-    }
-
-      const char *stkerr_get_bit_descr(stk_err err) {
-    #define BIT_DESCR_(code) case code : return #code;
-    switch (err) {
-        BIT_DESCR_(STK_ERR_OK)
-        BIT_DESCR_(STK_ERR_UNKNOWN)
-        BIT_DESCR_(STK_ERR_CALLOC)
-        BIT_DESCR_(STK_ERR_NULLPTR)
-        BIT_DESCR_(STK_ERR_STAT)
-        BIT_DESCR_(STK_ERR_INPUT_DATA)
-        BIT_DESCR_(STK_ERR_MEM)
-        BIT_DESCR_(STK_ERR_FILE_CLOSE)
-        BIT_DESCR_(STK_ERR_FILE_OPEN)
-        BIT_DESCR_(STK_ERR_ARGS)
-        BIT_DESCR_(STK_ERR_WRONG_COEF)
-        BIT_DESCR_(STK_ERR_INIT)
-        BIT_DESCR_(STK_ERR_STACK_NULLPTR)
-        BIT_DESCR_(STK_ERR_STACK_CONT_NULLPTR)
-        BIT_DESCR_(STK_ERR_STACK_OVERFLOW)
-        BIT_DESCR_(STK_ERR_STACK_POP)
-        BIT_DESCR_(STK_ERR_REALLOC)
-        BIT_DESCR_(STK_ERR_CANARY_LEFT)
-        BIT_DESCR_(STK_ERR_CANARY_MID)
-        BIT_DESCR_(STK_ERR_CANARY_RIGHT)
-        BIT_DESCR_(STK_ERR_CANARY_STK_RIGHT)
-        BIT_DESCR_(STK_ERR_HASH_STACK_DATA_MISMATCH)
-        BIT_DESCR_(STK_ERR_CANARY_STK_LEFT)
-        BIT_DESCR_(STK_ERR_SYSTEM)
-        BIT_DESCR_(STK_ERR_STACK_LAST_ELEM)
-        BIT_DESCR_(STK_ERR_HASH_STACK_STRUCT_MISMATCH)
-        BIT_DESCR_(STK_ERR_INVALID_INDEX)
-
-        default: return "VERY STRANGE ERROR:(";
-    }
-    #undef BIT_DESCR_
-}
-
-};
-
 class OperatorEdge : public Edge {
-    OperatorEdge(std::string_view label, const uint64_t src_id, const uint64_t dst_id): Edge(label, src_id, dst_id) {
-        color_ = "gray";
-        penwidth_ = 1;
-        style_ = "dotted";
+public:
+   using Edge::Edge;
+
+    void print(std::ostream &stream) const {
+        if (src_id_ == 0 && dst_id_ == 0) return;
+        const char color[] = "gray";
+        const size_t penwidth = 1;
+        const char style[] = "dotted";
+
+        stream << "  n" << src_id_ << " -> n" << dst_id_;
+        stream << " [label=\"" << get_kind_label(kind_) << "\"";
+        stream << " color="    << color;
+        stream << " penwidth=" << penwidth;
+        stream << " style="    << style;
+        stream << " arrowhead=normal";
+        stream << "];\n";
     }
 };
 
 class MoveEdge : public Edge {
-    MoveEdge(std::string_view label, const uint64_t src_id, const uint64_t dst_id): Edge(label, src_id, dst_id) {
-        color_ = "green";
-        penwidth_ = 2;
-        style_ = "solid";
+public:
+    using Edge::Edge;
+    
+    void print(std::ostream &stream) const {
+        if (src_id_ == 0 && dst_id_ == 0) return;
+        const char color[] = "green";
+        const size_t penwidth = 2;
+        const char style[] = "solid";
+
+        stream << "  n" << src_id_ << " -> n" << dst_id_;
+        stream << " [label=\"" << get_kind_label(kind_) << "\"";
+        stream << " color="    << color;
+        stream << " penwidth=" << penwidth;
+        stream << " style="    << style;
+        stream << " arrowhead=normal";
+        stream << "];\n";
     }
 };
 
 class Node { 
-protected:
-    std::string_view type;
-    uint64_t id;
-    std::string_view name;  
-    uintptr_t addr; 
+    std::string type_;
+    uint64_t id_;
+    std::string_view name_;  
+    const void* addr_; 
+    std::string value_;
 
 public:
+
+    Node
+    (
+        const std::string &type, const uint64_t id, 
+        const std::string_view name, const void* addr, const std::string value
+    ):
+        type_(type), id_(id), name_(name), addr_(addr), value_(value) {}
+    
     void print(std::ostream &stream) const {
-        stream << "  n" << id;
-        stream << " [label=\"" << name << " (id" << id << ")";
-        else stream << "#" << id;
-        if (!alive) stream << " (dead)";
-        stream << "\"";
-        stream << " shape=rect style=filled fillcolor=" << (alive ? "lightgreen" : "lightcoral");
+        stream << "  n" << id_;
+        stream << " [label=\"" << type_<< " " << name_ << " #" << id_
+               << " " << addr_ << " " << " val = " << value_ << "\"";
+        stream << " shape=rect style=filled fillcolor=" << (name_ != "" ? "lightgreen" : "gray");
         stream << "];\n";
     }
 };
@@ -123,7 +146,7 @@ public:
 class GraphBuilder {
     uint64_t next_id_{1};
     std::unordered_map<uint64_t, Node> nodes_;
-    std::vector<Event> events_;
+    std::vector<std::unique_ptr<Edge>> edges_;
 
 public:
     static GraphBuilder& instance() {
@@ -131,19 +154,30 @@ public:
         return g;
     }
 
-    uint64_t make_node(const std::string_view name="") {
+    template <typename T>
+    uint64_t make_node
+    (
+        const void* addr, const T& value, 
+        const std::string type="", const std::string_view name="") 
+    {
         uint64_t id = next_id_++;
-        nodes_.emplace(id, Node{id, name, !name.empty(), true});
+        nodes_.emplace(id, Node(type, id, name, addr, std::to_string(value)));
         return id;
     }
 
-    void mark_dead(uint64_t id) {
-        auto it = nodes_.find(id);
-        if (it != nodes_.end()) it->second.alive = false;
+    void add_copy_edge(Edge::Kind kind, uint64_t src, uint64_t dst) {
+        auto copy_edge = std::make_unique<CopyEdge>(kind, src, dst);
+        edges_.push_back(std::move(copy_edge));
     }
 
-    void add_event(Event::Kind k, uint64_t src, uint64_t dst) {
-        events_.push_back(Event{k, src, dst});
+    void add_move_edge(Edge::Kind kind, uint64_t src, uint64_t dst) {
+        auto copy_edge = std::make_unique<MoveEdge>(kind, src, dst);
+        edges_.push_back(std::move(copy_edge));
+    }
+
+    void add_operator_edge(Edge::Kind kind, uint64_t src, uint64_t dst) {
+        auto copy_edge = std::make_unique<OperatorEdge>(kind, src, dst);
+        edges_.push_back(std::move(copy_edge));
     }
 
     std::string to_dot() const {
@@ -157,7 +191,7 @@ public:
         ostream << "  ranksep=1.5;\n";      
     
         for (auto &[id, node] : nodes_) node.print(ostream);
-        for (auto &edge : events_) edge.print(ostream);
+        for (auto &edge : edges_) edge->print(ostream);
 
         ostream << "}\n";
         return ostream.str();
@@ -183,7 +217,7 @@ public:
         
         if (remove_dotfile) std::remove(temp_dot_filename.c_str());
     }
-
+    
 private:
     GraphBuilder() = default;
 };

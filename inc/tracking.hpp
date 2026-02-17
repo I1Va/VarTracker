@@ -3,312 +3,189 @@
 #include <iostream>
 #include <utility>
 #include <cstdint>
+#include <typeinfo>
+#include <cxxabi.h>
+
 #include "graph_builder.hpp"
+
 
 #define TRACK_VAR(T, name, ...) \
     Tracked<T> name(#name, __VA_ARGS__);
 
-static inline void log(const std::string_view name, const char msg[]) {
-    if (!name.empty()) {
-        std::cerr << name << ": " << msg << '\n';
-    }
+#define INIT_FUNC()
+
+
+template <typename T>
+std::string full_type_name() {
+    const char* mangled = typeid(T).name();
+    int status = 0;
+
+    std::unique_ptr<char, void(*)(void*)> demangled(
+        abi::__cxa_demangle(mangled, nullptr, nullptr, &status),
+        std::free
+    );
+
+    return (status == 0) ? demangled.get() : mangled;
 }
 
 template <typename T>
-class Tracked {
+struct Tracked {
     uint64_t graph_id_;
     std::string_view name_{};
+    std::string type_{};
     T value_;
 public:
-    ~Tracked() { GraphBuilder::instance().mark_dead(graph_id_); }
     Tracked() = delete;
 
-    // Copy constructors
-    Tracked(const Tracked& other): name_(other.name_), value_(other.value_) {
-        graph_id_ = GraphBuilder::instance().make_node(name_);
-        GraphBuilder::instance().add_event(Event::COPY_CONSTRUCT, other.graph_id_, graph_id_);
-    }
-    Tracked(std::string_view name, const Tracked& other) : name_(name), value_(other.value_) {
-        graph_id_ = GraphBuilder::instance().make_node(name_);
-        GraphBuilder::instance().add_event(Event::COPY_CONSTRUCT, other.graph_id_, graph_id_);
-    }
-    Tracked(std::string_view name, const T& value) : name_(name), value_(value) {
-        graph_id_ = GraphBuilder::instance().make_node(name_);
-    }
-    Tracked(const T& value) : value_(value) {
-        graph_id_ = GraphBuilder::instance().make_node();
+    Tracked(std::string_view name, const T& value)
+        : name_(name), type_(full_type_name<T>()), value_(value) {
+        graph_id_ = GraphBuilder::instance().make_node(&value_, value_, type_, name_);
     }
 
-    // Move constructors
-    Tracked(Tracked&& other) : name_(std::move(other.name_)), value_(std::move(other.value_)) {
-        graph_id_ = GraphBuilder::instance().make_node(name_);
-        GraphBuilder::instance().add_event(Event::MOVE_CONSTRUCT, other.graph_id_, graph_id_);
-        GraphBuilder::instance().mark_dead(other.graph_id_);
+    Tracked(std::string_view name, const Tracked& other)
+        : name_(name), type_(full_type_name<T>()), value_(other.value_) {
+        graph_id_ = GraphBuilder::instance().make_node(&value_, value_, type_, name_);
+        GraphBuilder::instance().add_copy_edge(Edge::CONSTRUCT, other.graph_id_, graph_id_);
     }
+
+    Tracked(const Tracked& other)
+        : name_(other.name_), type_(other.type_), value_(other.value_) {
+        graph_id_ = GraphBuilder::instance().make_node(&value_, value_, type_, name_);
+        GraphBuilder::instance().add_copy_edge(Edge::CONSTRUCT, other.graph_id_, graph_id_);
+    }
+
+    Tracked(Tracked&& other) noexcept
+        : name_(other.name_), type_(other.type_), value_(std::move(other.value_)) {
+        graph_id_ = GraphBuilder::instance().make_node(&value_, value_, type_, name_);
+        GraphBuilder::instance().add_move_edge(Edge::CONSTRUCT, other.graph_id_, graph_id_);
+    }
+
+    template<typename U>
+    Tracked(const Tracked<U>& other)
+        : name_(other.name_), type_(typeid(T).name()), value_(static_cast<T>(other.value_)) {
+        graph_id_ = GraphBuilder::instance().make_node(&value_, value_, type_, name_);
+        GraphBuilder::instance().add_copy_edge(Edge::CONSTRUCT, other.graph_id_, graph_id_);
+    }
+
+    Tracked(const T& value) : value_(value) {
+        graph_id_ = GraphBuilder::instance().make_node(&value_, value_, full_type_name<T>());
+    }
+
     Tracked(T&& value) : value_(std::move(value)) {
-        graph_id_ = GraphBuilder::instance().make_node();
+        graph_id_ = GraphBuilder::instance().make_node(&value_, value_, full_type_name<T>());
     }
-        
-    // Copy assignment
+
     Tracked& operator=(const Tracked& other) {
         value_ = other.value_;
-        GraphBuilder::instance().add_event(Event::COPY_ASSIGN, other.graph_id_, graph_id_);
+        GraphBuilder::instance().update_node_value(graph_id_, value_);
+        GraphBuilder::instance().add_copy_edge(Edge::ASSIGN, other.graph_id_, graph_id_);
         return *this;
     }
 
-    // Move assignment
     Tracked& operator=(Tracked&& other) noexcept {
         value_ = std::move(other.value_);
-        GraphBuilder::instance().add_event(Event::MOVE_ASSIGN, other.graph_id_, graph_id_);
-        GraphBuilder::instance().mark_dead(other.graph_id_);
+        GraphBuilder::instance().update_node_value(graph_id_, value_);
+        GraphBuilder::instance().add_move_edge(Edge::ASSIGN, other.graph_id_, graph_id_);
         return *this;
     }
 
-    // Cast
-    operator T() const { return value_;}
+    // operator T() const { return value_; }
 
-    // Operators
-
-    #define BUILD_COMPARE(op)                                                       \
-        friend bool op(const Tracked& lhs, const Tracked& rhs) {                    \
-            uint64_t cmp_id = GraphBuilder::instance().make_node();                 \
-            GraphBuilder::instance().add_event(Event::READ, lhs.graph_id_, cmp_id); \
-            GraphBuilder::instance().add_event(Event::READ, rhs.graph_id_, cmp_id); \
-            GraphBuilder::instance().mark_dead(cmp_id);                             \
-            return lhs.value_ == rhs.value_;                                        \
-        }                                                                           \
-        
-        BUILD_COMPARE(operator==)
-        BUILD_COMPARE(operator!=)
-        BUILD_COMPARE(operator<)
-        BUILD_COMPARE(operator>)
-        BUILD_COMPARE(operator>=)
-        BUILD_COMPARE(operator<=)
-    #undef BUILD_COMPARE
-    
-    
-    #define BUILD_ARITHMETIC(op) \
-        friend Tracked op(const Tracked& lhs, const Tracked& rhs) {
-        Tracked res(lhs.value_ + rhs.value_);
-        GraphBuilder::instance().add_event(Event::COPY_ASSIGN, lhs.graph_id_, res.graph_id_);
-        GraphBuilder::instance().add_event(Event::COPY_ASSIGN, rhs.graph_id_, res.graph_id_);
-        return res;
+#define BUILD_ARITHMETIC(op, kind)                                                              \
+    friend Tracked operator op(const Tracked& a, const Tracked& b) {                            \
+        Tracked r("", a.value_ op b.value_);                                                    \
+        GraphBuilder::instance().add_operator_edge(Edge::kind, a.graph_id_, r.graph_id_);       \
+        GraphBuilder::instance().add_operator_edge(Edge::kind, b.graph_id_, r.graph_id_);       \
+        return r;                                                                               \
+    }                                                                                           \
+    friend Tracked operator op(const Tracked& a, const T& b) {                                  \
+        Tracked r("", a.value_ op b);                                                           \
+        uint64_t tmp_id = GraphBuilder::instance().make_node(&b, b, full_type_name<T>());       \
+        GraphBuilder::instance().add_operator_edge(Edge::kind, a.graph_id_, r.graph_id_);       \
+        GraphBuilder::instance().add_operator_edge(Edge::kind, tmp_id, r.graph_id_);            \
+        return r;                                                                               \
+    }                                                                                           \
+    friend Tracked operator op(const T& a, const Tracked& b) {                                  \
+        Tracked r("", a op b.value_);                                                           \
+        GraphBuilder::instance().add_operator_edge(Edge::kind, b.graph_id_, r.graph_id_);       \
+        return r;                                                                               \
     }
 
-    
+    BUILD_ARITHMETIC(+, ADD)
+    BUILD_ARITHMETIC(-, SUB)
+    BUILD_ARITHMETIC(*, MUL)
+    BUILD_ARITHMETIC(/, DIV)
+#undef BUILD_ARITHMETIC
 
-    friend Tracked operator+(const Tracked& lhs, const Tracked& rhs) {
-        Tracked res("+", lhs.value_ + rhs.value_);
-        GraphBuilder::instance().add_event(Event::COPY_ASSIGN, lhs.graph_id_, res.graph_id_);
-        GraphBuilder::instance().add_event(Event::COPY_ASSIGN, rhs.graph_id_, res.graph_id_);
-        return res;
+#define BUILD_COMPARISON(op, kind)                                                              \
+    friend Tracked<bool> operator op(const Tracked& a, const Tracked& b) {                      \
+        Tracked<bool> r("", a.value_ op b.value_);                                              \
+        GraphBuilder::instance().add_operator_edge(Edge::kind, a.graph_id_, r.graph_id_);       \
+        GraphBuilder::instance().add_operator_edge(Edge::kind, b.graph_id_, r.graph_id_);       \
+        return r;                                                                               \
+    }                                                                                           \
+                                                                                                \
+    friend Tracked<bool> operator op(const Tracked& a, const T& b) {                            \
+        Tracked<bool> r("", a.value_ op b);                                                     \
+        uint64_t tmp_id = GraphBuilder::instance().make_node(&b, b, "bool");                    \
+        GraphBuilder::instance().add_operator_edge(Edge::kind, a.graph_id_, r.graph_id_);       \
+        GraphBuilder::instance().add_operator_edge(Edge::kind, tmp_id, r.graph_id_);            \
+        return r;                                                                               \
+    }                                                                                           \
+                                                                                                \
+    friend Tracked<bool> operator op(const T& a, const Tracked& b) {                            \
+        Tracked<bool> r("", a op b.value_);                                                     \
+        uint64_t tmp_id = GraphBuilder::instance().make_node(&a, a, "bool");                    \
+        GraphBuilder::instance().add_operator_edge(Edge::kind, tmp_id, r.graph_id_);            \
+        GraphBuilder::instance().add_operator_edge(Edge::kind, b.graph_id_, r.graph_id_);       \
+        return r;                                                                               \
     }
+BUILD_COMPARISON(>, GT)
+BUILD_COMPARISON(<, LT)
+BUILD_COMPARISON(>=, GE)
+BUILD_COMPARISON(<=, LE)
+BUILD_COMPARISON(==, EQ)
+BUILD_COMPARISON(!=, NE)
 
-    friend Tracked operator-(const Tracked& lhs, const Tracked& rhs) {
-        Tracked res("-", lhs.value_ - rhs.value_);
-        GraphBuilder::instance().add_event(Event::COPY_ASSIGN, lhs.graph_id_, res.graph_id_);
-        GraphBuilder::instance().add_event(Event::COPY_ASSIGN, rhs.graph_id_, res.graph_id_);
-        return res;
-    }
+#undef BUILD_COMPARISON
 
-    friend Tracked operator*(const Tracked& lhs, const Tracked& rhs) {
-        Tracked res("*", lhs.value_ * rhs.value_);
-        GraphBuilder::instance().add_event(Event::COPY_ASSIGN, lhs.graph_id_, res.graph_id_);
-        GraphBuilder::instance().add_event(Event::COPY_ASSIGN, rhs.graph_id_, res.graph_id_);
-        return res;
-    }
-
-    friend Tracked operator/(const Tracked& lhs, const Tracked& rhs) {
-        Tracked res("/", lhs.value_ / rhs.value_);
-        GraphBuilder::instance().add_event(Event::COPY_ASSIGN, lhs.graph_id_, res.graph_id_);
-        GraphBuilder::instance().add_event(Event::COPY_ASSIGN, rhs.graph_id_, res.graph_id_);
-        return res;
-    }
-
-    // Tracked op T
-    friend bool operator==(const Tracked& lhs, const T& rhs) {
-        uint64_t lit = GraphBuilder::instance().make_node("#lit");
-        uint64_t cmp_id = GraphBuilder::instance().make_node("#cmp");
-        GraphBuilder::instance().add_event(Event::READ, lhs.graph_id_, cmp_id);
-        GraphBuilder::instance().add_event(Event::READ, lit, cmp_id);
-        GraphBuilder::instance().mark_dead(lit);
-        GraphBuilder::instance().mark_dead(cmp_id);
-        return lhs.value_ == rhs;
-    }
-    friend bool operator!=(const Tracked& lhs, const T& rhs) { 
-        uint64_t lit = GraphBuilder::instance().make_node("#lit");
-        uint64_t cmp_id = GraphBuilder::instance().make_node("#cmp");
-        GraphBuilder::instance().add_event(Event::READ, lhs.graph_id_, cmp_id);
-        GraphBuilder::instance().add_event(Event::READ, lit, cmp_id);
-        GraphBuilder::instance().mark_dead(lit);
-        GraphBuilder::instance().mark_dead(cmp_id);
-        return lhs.value_ != rhs; }
-    friend bool operator<(const Tracked& lhs, const T& rhs)  { 
-        uint64_t lit = GraphBuilder::instance().make_node("#lit");
-        uint64_t cmp_id = GraphBuilder::instance().make_node("#cmp");
-        GraphBuilder::instance().add_event(Event::READ, lhs.graph_id_, cmp_id);
-        GraphBuilder::instance().add_event(Event::READ, lit, cmp_id);
-        GraphBuilder::instance().mark_dead(lit);
-        GraphBuilder::instance().mark_dead(cmp_id);
-        return lhs.value_ <  rhs; }
-    friend bool operator>(const Tracked& lhs, const T& rhs)  { 
-        uint64_t lit = GraphBuilder::instance().make_node("#lit");
-        uint64_t cmp_id = GraphBuilder::instance().make_node("#cmp");
-        GraphBuilder::instance().add_event(Event::READ, lhs.graph_id_, cmp_id);
-        GraphBuilder::instance().add_event(Event::READ, lit, cmp_id);
-        GraphBuilder::instance().mark_dead(lit);
-        GraphBuilder::instance().mark_dead(cmp_id);
-        return lhs.value_ >  rhs; }
-    friend bool operator<=(const Tracked& lhs, const T& rhs) { 
-        uint64_t lit = GraphBuilder::instance().make_node("#lit");
-        uint64_t cmp_id = GraphBuilder::instance().make_node("#cmp");
-        GraphBuilder::instance().add_event(Event::READ, lhs.graph_id_, cmp_id);
-        GraphBuilder::instance().add_event(Event::READ, lit, cmp_id);
-        GraphBuilder::instance().mark_dead(lit);
-        GraphBuilder::instance().mark_dead(cmp_id);
-        return lhs.value_ <= rhs; }
-    friend bool operator>=(const Tracked& lhs, const T& rhs) { 
-        uint64_t lit = GraphBuilder::instance().make_node("#lit");
-        uint64_t cmp_id = GraphBuilder::instance().make_node("#cmp");
-        GraphBuilder::instance().add_event(Event::READ, lhs.graph_id_, cmp_id);
-        GraphBuilder::instance().add_event(Event::READ, lit, cmp_id);
-        GraphBuilder::instance().mark_dead(lit);
-        GraphBuilder::instance().mark_dead(cmp_id);
-        return lhs.value_ >= rhs; }
-
-    // T op Tracked
-    friend bool operator==(const T& lhs, const Tracked& rhs) { 
-        uint64_t lit = GraphBuilder::instance().make_node("#lit");
-        uint64_t cmp_id = GraphBuilder::instance().make_node("#cmp");
-        GraphBuilder::instance().add_event(Event::READ, lit, cmp_id);
-        GraphBuilder::instance().add_event(Event::READ, rhs.graph_id_, cmp_id);
-        GraphBuilder::instance().mark_dead(lit);
-        GraphBuilder::instance().mark_dead(cmp_id);
-        return lhs == rhs.value_; }
-    friend bool operator!=(const T& lhs, const Tracked& rhs) { 
-        uint64_t lit = GraphBuilder::instance().make_node("#lit");
-        uint64_t cmp_id = GraphBuilder::instance().make_node("#cmp");
-        GraphBuilder::instance().add_event(Event::READ, lit, cmp_id);
-        GraphBuilder::instance().add_event(Event::READ, rhs.graph_id_, cmp_id);
-        GraphBuilder::instance().mark_dead(lit);
-        GraphBuilder::instance().mark_dead(cmp_id);
-        return lhs != rhs.value_; }
-    friend bool operator<(const T& lhs, const Tracked& rhs)  { 
-        uint64_t lit = GraphBuilder::instance().make_node("#lit");
-        uint64_t cmp_id = GraphBuilder::instance().make_node("#cmp");
-        GraphBuilder::instance().add_event(Event::READ, lit, cmp_id);
-        GraphBuilder::instance().add_event(Event::READ, rhs.graph_id_, cmp_id);
-        GraphBuilder::instance().mark_dead(lit);
-        GraphBuilder::instance().mark_dead(cmp_id);
-        return lhs <  rhs.value_; }
-    friend bool operator>(const T& lhs, const Tracked& rhs)  { 
-        uint64_t lit = GraphBuilder::instance().make_node("#lit");
-        uint64_t cmp_id = GraphBuilder::instance().make_node("#cmp");
-        GraphBuilder::instance().add_event(Event::READ, lit, cmp_id);
-        GraphBuilder::instance().add_event(Event::READ, rhs.graph_id_, cmp_id);
-        GraphBuilder::instance().mark_dead(lit);
-        GraphBuilder::instance().mark_dead(cmp_id);
-        return lhs >  rhs.value_; }
-    friend bool operator<=(const T& lhs, const Tracked& rhs) { 
-        uint64_t lit = GraphBuilder::instance().make_node("#lit");
-        uint64_t cmp_id = GraphBuilder::instance().make_node("#cmp");
-        GraphBuilder::instance().add_event(Event::READ, lit, cmp_id);
-        GraphBuilder::instance().add_event(Event::READ, rhs.graph_id_, cmp_id);
-        GraphBuilder::instance().mark_dead(lit);
-        GraphBuilder::instance().mark_dead(cmp_id);
-        return lhs <= rhs.value_; }
-    friend bool operator>=(const T& lhs, const Tracked& rhs) { 
-        uint64_t lit = GraphBuilder::instance().make_node("#lit");
-        uint64_t cmp_id = GraphBuilder::instance().make_node("#cmp");
-        GraphBuilder::instance().add_event(Event::READ, lit, cmp_id);
-        GraphBuilder::instance().add_event(Event::READ, rhs.graph_id_, cmp_id);
-        GraphBuilder::instance().mark_dead(lit);
-        GraphBuilder::instance().mark_dead(cmp_id);
-        return lhs >= rhs.value_; }
-
-    Tracked& operator+=(const Tracked& rhs) { value_ += rhs.value_; GraphBuilder::instance().add_event(Event::COPY_ASSIGN, rhs.graph_id_, graph_id_); return *this; }
-    Tracked& operator-=(const Tracked& rhs) { value_ -= rhs.value_; GraphBuilder::instance().add_event(Event::COPY_ASSIGN, rhs.graph_id_, graph_id_); return *this; }
-    Tracked& operator*=(const Tracked& rhs) { value_ *= rhs.value_; GraphBuilder::instance().add_event(Event::COPY_ASSIGN, rhs.graph_id_, graph_id_); return *this; }
-    Tracked& operator/=(const Tracked& rhs) { value_ /= rhs.value_; GraphBuilder::instance().add_event(Event::COPY_ASSIGN, rhs.graph_id_, graph_id_); return *this; }
-
-    Tracked& operator+=(const T& rhs) { 
-        Tracked unnamed_operand(rhs);
-        value_ += rhs;
-        GraphBuilder::instance().add_event(Event::COPY_ASSIGN, unnamed_operand.graph_id_, graph_id_);
-        return *this; 
+#define BUILD_COMPOUND_ASSIGN(op, kind)                                                         \
+    Tracked& operator op(const Tracked& rhs) {                                                  \
+        value_ op rhs.value_;                                                                   \
+        GraphBuilder::instance().add_operator_edge(Edge::kind, rhs.graph_id_, graph_id_);       \
+        return *this;                                                                           \
+    }                                                                                           \
+    Tracked& operator op(const T& rhs) {                                                        \
+        value_ op rhs;                                                                          \
+        uint64_t rhs_id = GraphBuilder::instance().make_node(&rhs, rhs, full_type_name<T>());   \
+        GraphBuilder::instance().add_operator_edge(Edge::kind, rhs_id, graph_id_);              \
+        return *this;                                                                           \
     }
 
-    Tracked& operator-=(const T& rhs) {
-        Tracked unnamed_operand(rhs);
-        value_ -= rhs;
-        GraphBuilder::instance().add_event(Event::COPY_ASSIGN, unnamed_operand.graph_id_, graph_id_);
-        return *this; 
-    }
-
-    Tracked& operator*=(const T& rhs) { 
-        Tracked unnamed_operand(rhs);
-        value_ *= rhs;
-        GraphBuilder::instance().add_event(Event::COPY_ASSIGN, unnamed_operand.graph_id_, graph_id_);
-        return *this; 
-    }
-
-    Tracked& operator/=(const T& rhs) {
-        Tracked unnamed_operand(rhs);
-        value_ /= rhs;
-        GraphBuilder::instance().add_event(Event::COPY_ASSIGN, unnamed_operand.graph_id_, graph_id_);
-        return *this; 
-    }
-
-    Tracked& operator++() {
-        uint64_t old_id = graph_id_;
-        ++value_;
-        uint64_t new_id = GraphBuilder::instance().make_node(name_.empty() ? "#tmp" : name_);
-        GraphBuilder::instance().add_event(Event::COPY_ASSIGN, old_id, new_id);
-        GraphBuilder::instance().mark_dead(old_id);
-        graph_id_ = new_id;
-        return *this;
-    }
-    Tracked operator++(int) {
-        Tracked tmp(*this); 
-        ++(*this);         
-        return tmp;
-    }
-    Tracked& operator--() {
-        uint64_t old_id = graph_id_;
-        --value_;
-        uint64_t new_id = GraphBuilder::instance().make_node(name_.empty() ? "#tmp" : name_);
-        GraphBuilder::instance().add_event(Event::COPY_ASSIGN, old_id, new_id);
-        GraphBuilder::instance().mark_dead(old_id);
-        graph_id_ = new_id;
-        return *this;
-    }
-    Tracked operator--(int) {
-        Tracked tmp(*this);
-        --(*this);
-        return tmp;
-    }
+    BUILD_COMPOUND_ASSIGN(+=, ADD)
+    BUILD_COMPOUND_ASSIGN(-=, SUB)
+    BUILD_COMPOUND_ASSIGN(*=, MUL)
+    BUILD_COMPOUND_ASSIGN(/=, DIV)
+#undef BUILD_COMPOUND_ASSIGN
 
     template<typename U>
-    friend std::istream& operator>>(std::istream& is, Tracked<U>& t);
+    friend std::istream& operator>>(std::istream&, Tracked<U>&);
+
     template<typename U>
-    friend std::ostream& operator<<(std::ostream& os, const Tracked<U>& t);
-
-
+    friend std::ostream& operator<<(std::ostream&, const Tracked<U>&);
 };
 
 template<typename T>
 std::istream& operator>>(std::istream& is, Tracked<T>& t) {
     is >> t.value_;
-    uint64_t in_id = GraphBuilder::instance().make_node("#input");
-    GraphBuilder::instance().add_event(Event::COPY_ASSIGN, in_id, t.graph_id_);
-    GraphBuilder::instance().mark_dead(in_id);
+    uint64_t input_node = GraphBuilder::instance().make_node(&t.value_, t.value_, full_type_name<T>());
+    GraphBuilder::instance().add_operator_edge(Edge::ASSIGN, input_node, t.graph_id_);
     return is;
 }
 
 template<typename T>
 std::ostream& operator<<(std::ostream& os, const Tracked<T>& t) {
-    uint64_t out_id = GraphBuilder::instance().make_node("#output");
-    GraphBuilder::instance().add_event(Event::READ, t.graph_id_, out_id);
-    GraphBuilder::instance().mark_dead(out_id);
+    uint64_t output_node = GraphBuilder::instance().make_node(&t.value_, t.value_, full_type_name<T>());
+    GraphBuilder::instance().add_operator_edge(Edge::ASSIGN, t.graph_id_, output_node);
     return os << t.value_;
 }

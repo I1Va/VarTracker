@@ -39,6 +39,6 @@ int main() {
     TRACK_VAR(int, r2, pipeline(r1));
     TRACK_VAR(int, r3, add(r1, r2));
 
-    GraphBuilder::instance().to_image("graph.png", false);
+    GraphBuilder::instance().to_image("graph");
     return 0;
 }
