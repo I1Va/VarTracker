@@ -1,4 +1,5 @@
 #pragma once
+
 #include <string_view>
 #include <iostream>
 #include <utility>
@@ -8,11 +9,25 @@
 
 #include "graph_builder.hpp"
 
+class ScopeGuard {
 
-#define TRACK_VAR(T, name, ...) \
-    Tracked<T> name(#name, __VA_ARGS__);
+public:
+    ScopeGuard(const std::string &signature) {
+        GraphBuilder::instance().new_scope(signature);
+    }
+    ScopeGuard(std::string &&signature) {
+        GraphBuilder::instance().new_scope(std::move(signature));
+    }
 
-#define INIT_FUNC()
+    ~ScopeGuard() {
+        GraphBuilder::instance().close_scope();
+    }
+};
+
+#define TRACK_VAR(T, name, ...) Tracked<T> name(#name, __VA_ARGS__);
+#define INIT_FUNC() ScopeGuard scope(__PRETTY_FUNCTION__);
+
+
 
 
 template <typename T>
@@ -152,11 +167,13 @@ BUILD_COMPARISON(!=, NE)
 #define BUILD_COMPOUND_ASSIGN(op, kind)                                                         \
     Tracked& operator op(const Tracked& rhs) {                                                  \
         value_ op rhs.value_;                                                                   \
+        GraphBuilder::instance().update_node_value(graph_id_, value_);                          \
         GraphBuilder::instance().add_operator_edge(Edge::kind, rhs.graph_id_, graph_id_);       \
         return *this;                                                                           \
     }                                                                                           \
     Tracked& operator op(const T& rhs) {                                                        \
         value_ op rhs;                                                                          \
+        GraphBuilder::instance().update_node_value(graph_id_, value_);                          \
         uint64_t rhs_id = GraphBuilder::instance().make_node(&rhs, rhs, full_type_name<T>());   \
         GraphBuilder::instance().add_operator_edge(Edge::kind, rhs_id, graph_id_);              \
         return *this;                                                                           \

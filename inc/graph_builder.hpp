@@ -1,146 +1,25 @@
-#include <cstdint>
-#include <string>
-#include <unordered_map>
+#pragma once
 #include <vector>
+#include <unordered_map>
+#include <stack>
+#include <iostream>
 #include <sstream>
 #include <fstream>
-#include <iostream>
 #include <memory>
-#include <functional>
 
-class Edge {
+#include "edge.hpp"
+#include "node.hpp"
 
-public:
-    enum Kind {
-        CONSTRUCT,
-        ASSIGN,
-        ADD,
-        SUB,
-        MUL,
-        DIV,
-        GT,
-        LT,
-        GE,
-        LE,
-        EQ,
-        NE,
-    };
 
-    static const char *get_kind_label(const Kind kind) {
-        #define EDGE_KIND_DESCR_(code) case code : return #code;
-        switch (kind) {
-            EDGE_KIND_DESCR_(CONSTRUCT)
-            EDGE_KIND_DESCR_(ASSIGN)
-            EDGE_KIND_DESCR_(ADD)
-            EDGE_KIND_DESCR_(SUB)
-            EDGE_KIND_DESCR_(MUL)
-            EDGE_KIND_DESCR_(DIV)
-            EDGE_KIND_DESCR_(GT)
-            EDGE_KIND_DESCR_(LT)
-            EDGE_KIND_DESCR_(GE)
-            EDGE_KIND_DESCR_(LE)
-            EDGE_KIND_DESCR_(EQ)
-            EDGE_KIND_DESCR_(NE)
-        
-            default: return "Unknown";
-        }
-        #undef EDGE_KIND_DESCR_
-    }
 
-    virtual ~Edge() = default;       
-    virtual void print(std::ostream &stream) const = 0;
-    Edge(const Kind kind, const uint64_t src_id, const uint64_t dst_id): 
-        kind_(kind), src_id_(src_id), dst_id_(dst_id) {}
+struct Scope {
+    std::string signature;
+    int parent_id = -1;
 
-protected:
-    Kind kind_;
-    uint64_t src_id_; 
-    uint64_t dst_id_;
-};
-
-class CopyEdge final : public Edge {
-public:
-    using Edge::Edge;
-
-    void print(std::ostream &stream) const {
-        if (src_id_ == 0 && dst_id_ == 0) return;
-        const char color[] = "red";
-        const size_t penwidth = 3;
-        const char style[] = "solid";
-
-        stream << "  n" << src_id_ << " -> n" << dst_id_;
-        stream << " [label=\"" << get_kind_label(kind_) << "\"";
-        stream << " color="    << color;
-        stream << " penwidth=" << penwidth;
-        stream << " style="    << style;
-        stream << " arrowhead=normal";
-        stream << "];\n";
-    }
-};
-
-class OperatorEdge : public Edge {
-public:
-   using Edge::Edge;
-
-    void print(std::ostream &stream) const {
-        if (src_id_ == 0 && dst_id_ == 0) return;
-        const char color[] = "gray";
-        const size_t penwidth = 1;
-        const char style[] = "dotted";
-
-        stream << "  n" << src_id_ << " -> n" << dst_id_;
-        stream << " [label=\"" << get_kind_label(kind_) << "\"";
-        stream << " color="    << color;
-        stream << " penwidth=" << penwidth;
-        stream << " style="    << style;
-        stream << " arrowhead=normal";
-        stream << "];\n";
-    }
-};
-
-class MoveEdge : public Edge {
-public:
-    using Edge::Edge;
-    
-    void print(std::ostream &stream) const {
-        if (src_id_ == 0 && dst_id_ == 0) return;
-        const char color[] = "green";
-        const size_t penwidth = 2;
-        const char style[] = "solid";
-
-        stream << "  n" << src_id_ << " -> n" << dst_id_;
-        stream << " [label=\"" << get_kind_label(kind_) << "\"";
-        stream << " color="    << color;
-        stream << " penwidth=" << penwidth;
-        stream << " style="    << style;
-        stream << " arrowhead=normal";
-        stream << "];\n";
-    }
-};
-
-class Node { 
-    std::string type_;
-    uint64_t id_;
-    std::string_view name_;  
-    const void* addr_; 
-    std::string value_;
-
-public:
-
-    Node
-    (
-        const std::string &type, const uint64_t id, 
-        const std::string_view name, const void* addr, const std::string value
-    ):
-        type_(type), id_(id), name_(name), addr_(addr), value_(value) {}
-    
-    void print(std::ostream &stream) const {
-        stream << "  n" << id_;
-        stream << " [label=\"" << type_<< " " << name_ << " #" << id_
-               << " " << addr_ << " " << " val = " << value_ << "\"";
-        stream << " shape=rect style=filled fillcolor=" << (name_ != "" ? "lightgreen" : "gray");
-        stream << "];\n";
-    }
+    Scope(const std::string &in_signature, const size_t in_parent_id): 
+        signature(in_signature), parent_id(in_parent_id) {}
+    Scope(std::string &&in_signature, const size_t in_parent_id): 
+        signature(std::move(in_signature)), parent_id(in_parent_id) {}
 };
 
 class GraphBuilder {
@@ -148,10 +27,36 @@ class GraphBuilder {
     std::unordered_map<uint64_t, Node> nodes_;
     std::vector<std::unique_ptr<Edge>> edges_;
 
+    std::vector<Scope> scopes_storage{Scope("Global Scope", -1)};
+    std::stack<size_t> scopes_stack;
+
 public:
     static GraphBuilder& instance() {
         static GraphBuilder g;
         return g;
+    }
+
+    void new_scope(const std::string &signature) {
+        scopes_storage.push_back(Scope(signature, scopes_stack.top()));
+        scopes_stack.push(scopes_storage.size() - 1);
+    }
+    void new_scope(std::string &&signature) {
+        scopes_storage.push_back(Scope(std::move(signature), scopes_stack.top()));
+        scopes_stack.push(scopes_storage.size() - 1);
+    }
+    
+    void close_scope() {
+        scopes_stack.pop();
+    }
+
+    std::vector<Scope> &get_scopes_storage() { return scopes_storage; }
+
+    template <typename T>
+    void update_node_value(const uint64_t id, const T& new_value) {
+        auto it = nodes_.find(id);
+        if (it != nodes_.end()) {
+            it->second.set_value(std::to_string(new_value));
+        }
     }
 
     template <typename T>
@@ -161,7 +66,12 @@ public:
         const std::string type="", const std::string_view name="") 
     {
         uint64_t id = next_id_++;
-        nodes_.emplace(id, Node(type, id, name, addr, std::to_string(value)));
+        Node node = Node(this, type, id, name, addr, std::to_string(value));
+        if (!scopes_stack.empty()) {
+            node.set_scope(scopes_stack.top());
+        } 
+        nodes_.emplace(id, node);
+
         return id;
     }
 
@@ -189,8 +99,9 @@ public:
         ostream << "  splines=polyline;\n";  
         ostream << "  nodesep=1.0;\n";       
         ostream << "  ranksep=1.5;\n";      
-    
-        for (auto &[id, node] : nodes_) node.print(ostream);
+        
+        print_clusters(ostream);
+        // for (auto &[id, node] : nodes_) node.print(ostream);
         for (auto &edge : edges_) edge->print(ostream);
 
         ostream << "}\n";
@@ -219,5 +130,60 @@ public:
     }
     
 private:
-    GraphBuilder() = default;
+    
+    void print_cluster
+    (
+        std::ostream &stream,
+        const std::vector<std::vector<const Node *>> &cluster_nodes, 
+        const size_t cluster_id, const size_t indent
+    ) const {
+        const std::string indent_string(indent, ' ');
+        stream << indent_string << "subgraph cluster_" << cluster_id << " {\n";
+        stream << indent_string << "label = \"" << scopes_storage[cluster_id].signature << "\";\n";
+        for (const Node *node: cluster_nodes[cluster_id]) {
+            stream << indent_string; node->print(stream);
+        }
+    } 
+
+    void print_cluster_recursive
+    (
+        std::ostream &stream, 
+        const std::vector<std::vector<size_t>> &graph, 
+        const std::vector<std::vector<const Node *>> &cluster_nodes,
+        const size_t id, const size_t indent
+    ) const {
+        const std::string indent_string(indent, ' ');
+        for (size_t child_id : graph[id]) {
+            print_cluster(stream, cluster_nodes, child_id, indent);
+            print_cluster_recursive(stream, graph, cluster_nodes, child_id, 2);
+            stream << indent_string << "}\n";
+        }
+    }
+
+    void print_clusters(std::ostream &stream) const {
+        std::vector<std::vector<const Node *>> cluster_nodes(scopes_storage.size());
+        std::vector<std::vector<size_t>> clusters_graph(scopes_storage.size());
+        
+        for (auto &[node_id, node] : nodes_) {
+            cluster_nodes[node.get_scope()].push_back(&node);
+        }
+    
+        for (size_t scope_id = 0; scope_id < scopes_storage.size(); scope_id++) {
+            size_t parent_id = scopes_storage[scope_id].parent_id;
+            if (scope_id != 0) {
+                clusters_graph[parent_id].push_back(scope_id);   
+            }
+        }
+
+        const size_t indent = 2;
+        const std::string indent_string(indent, ' ');
+        
+        print_cluster(stream, cluster_nodes, 0, 2);
+        print_cluster_recursive(stream, clusters_graph, cluster_nodes, 0, 2);
+        stream << indent_string << "}\n";
+    }
+
+    GraphBuilder() {
+        scopes_stack.push(0);       
+    }
 };
