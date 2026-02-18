@@ -140,6 +140,12 @@ private:
         const std::string indent_string(indent, ' ');
         stream << indent_string << "subgraph cluster_" << cluster_id << " {\n";
         stream << indent_string << "label = \"" << scopes_storage[cluster_id].signature << "\";\n";
+        stream << indent_string << "color = \"" << "blue" << "\";\n";
+        stream << indent_string << "penwidth = \"" << "3" << "\";\n";
+        stream << indent_string << "fontcolor= \"" << "red" << "\"\n";     
+        stream << indent_string << "fontsize= " << 20 << "\n";
+
+        
         for (const Node *node: cluster_nodes[cluster_id]) {
             stream << indent_string; node->print(stream);
         }
