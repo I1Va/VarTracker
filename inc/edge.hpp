@@ -9,6 +9,7 @@ public:
     enum Kind {
         CONSTRUCT,
         ASSIGN,
+        MOVE,
         ADD,
         SUB,
         MUL,
@@ -26,6 +27,7 @@ public:
         switch (kind) {
             EDGE_KIND_DESCR_(CONSTRUCT)
             EDGE_KIND_DESCR_(ASSIGN)
+            EDGE_KIND_DESCR_(MOVE)
             EDGE_KIND_DESCR_(ADD)
             EDGE_KIND_DESCR_(SUB)
             EDGE_KIND_DESCR_(MUL)

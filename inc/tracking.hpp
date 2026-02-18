@@ -50,7 +50,9 @@ struct Tracked {
     std::string type_{};
     T value_;
 public:
-    Tracked() = delete;
+    Tracked() : name_(""), type_(full_type_name<T>()), value_(T()) {
+        graph_id_ = GraphBuilder::instance().make_node(&value_, value_, type_, name_);
+    }
 
     Tracked(std::string_view name, const T& value)
         : name_(name), type_(full_type_name<T>()), value_(value) {
@@ -100,11 +102,11 @@ public:
     Tracked& operator=(Tracked&& other) noexcept {
         value_ = std::move(other.value_);
         GraphBuilder::instance().update_node_value(graph_id_, value_);
-        GraphBuilder::instance().add_move_edge(Edge::ASSIGN, other.graph_id_, graph_id_);
+        GraphBuilder::instance().add_move_edge(Edge::MOVE, other.graph_id_, graph_id_);
         return *this;
     }
 
-    // operator T() const { return value_; }
+    operator T() const { return value_; }
 
 #define BUILD_ARITHMETIC(op, kind)                                                              \
     friend Tracked operator op(const Tracked& a, const Tracked& b) {                            \

@@ -3,7 +3,7 @@
 
 typedef Tracked<int> Int;
 
-Int add(Int a, Int b) {
+Int add(Int &a, Int &b) {
     INIT_FUNC()
     TRACK_VAR(int, add_r, a);
     add_r = add_r + b;
@@ -31,7 +31,7 @@ int main() {
     Int res1 = add(x, y);
 
     TRACK_VAR(int, z, 3);
-    Int res2 = mul(res1, z);
+    Int res2 = mul(std::move(res1), std::move(z));
 
     std::cout << res2 << "\n";
 

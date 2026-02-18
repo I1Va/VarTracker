@@ -1,0 +1,55 @@
+digraph G {
+  rankdir=LR;
+  node [shape=rect style=filled fontname="Courier"];
+  splines=polyline;
+  nodesep=1.0;
+  ranksep=1.5;
+  subgraph cluster_0 {
+  label = "Global Scope";
+  color = "blue";
+  penwidth = "3";
+  fontcolor= "red"
+  fontsize= 20
+  subgraph cluster_1 {
+  label = "int main()";
+  color = "blue";
+  penwidth = "3";
+  fontcolor= "red"
+  fontsize= 20
+    n13 [label="int  #13 0x7ffce9034168  val = 1" shape=rect style=filled fillcolor=gray];
+    n10 [label="int flag2 #10 0x7ffce90341a8  val = 1" shape=rect style=filled fillcolor=lightgreen];
+    n9 [label="int  #9 0x7ffce9034128  val = 1" shape=rect style=filled fillcolor=gray];
+    n8 [label="int flag2 #8 0x7ffce9034128  val = 1" shape=rect style=filled fillcolor=lightgreen];
+    n7 [label="int  #7 0x7ffce90340e8  val = 1" shape=rect style=filled fillcolor=gray];
+    n3 [label="int flag1 #3 0x7ffce90341a8  val = 1" shape=rect style=filled fillcolor=lightgreen];
+    n2 [label="int  #2 0x7ffce90340a8  val = 1" shape=rect style=filled fillcolor=gray];
+    n1 [label="int flag1 #1 0x7ffce90340a8  val = 1" shape=rect style=filled fillcolor=lightgreen];
+  subgraph cluster_2 {
+  label = "Int no_rvo(Int)";
+  color = "blue";
+  penwidth = "3";
+  fontcolor= "red"
+  fontsize= 20
+    n6 [label="  #6 0x7ffce90340e8  val = 1" shape=rect style=filled fillcolor=gray];
+    n5 [label="int  #5 0x7ffce9034018  val = 2" shape=rect style=filled fillcolor=gray];
+    n4 [label="int  #4 0x7ffce9033fd8  val = 1" shape=rect style=filled fillcolor=gray];
+  }
+  subgraph cluster_3 {
+  label = "Int yes_rvo(Int)";
+  color = "blue";
+  penwidth = "3";
+  fontcolor= "red"
+  fontsize= 20
+    n12 [label="int  #12 0x7ffce9034018  val = 2" shape=rect style=filled fillcolor=gray];
+    n11 [label="int  #11 0x7ffce9034168  val = 1" shape=rect style=filled fillcolor=gray];
+  }
+  }
+  }
+  n2 -> n1 [label="ASSIGN" color=gray penwidth=1 style=dotted arrowhead=normal];
+  n1 -> n3 [label="CONSTRUCT" color=red penwidth=3 style=solid arrowhead=normal];
+  n4 -> n6 [label="CONSTRUCT" color=green penwidth=2 style=solid arrowhead=normal];
+  n6 -> n7 [label="ASSIGN" color=gray penwidth=1 style=dotted arrowhead=normal];
+  n9 -> n8 [label="ASSIGN" color=gray penwidth=1 style=dotted arrowhead=normal];
+  n8 -> n10 [label="CONSTRUCT" color=red penwidth=3 style=solid arrowhead=normal];
+  n11 -> n13 [label="ASSIGN" color=gray penwidth=1 style=dotted arrowhead=normal];
+}

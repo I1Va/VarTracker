@@ -1,0 +1,148 @@
+digraph G {
+  rankdir=LR;
+  node [shape=rect style=filled fontname="Courier"];
+  splines=polyline;
+  nodesep=1.0;
+  ranksep=1.5;
+  subgraph cluster_0 {
+  label = "Global Scope";
+  color = "blue";
+  penwidth = "3";
+  fontcolor= "red"
+  fontsize= 20
+    n43 [label="int  #43 0x7ffd7e264628  val = 6" shape=rect style=filled fillcolor=gray];
+    n9 [label="int add_r #9 0x7ffd7e264668  val = 2" shape=rect style=filled fillcolor=lightgreen];
+    n8 [label="int z #8 0x7ffd7e2646a8  val = 3" shape=rect style=filled fillcolor=lightgreen];
+    n7 [label="int z #7 0x7ffd7e2645e8  val = 3" shape=rect style=filled fillcolor=lightgreen];
+    n2 [label="int y #2 0x7ffd7e264568  val = 1" shape=rect style=filled fillcolor=lightgreen];
+    n1 [label="int x #1 0x7ffd7e264528  val = 1" shape=rect style=filled fillcolor=lightgreen];
+  subgraph cluster_1 {
+  label = "Int add(Int&, Int&)";
+  color = "blue";
+  penwidth = "3";
+  fontcolor= "red"
+  fontsize= 20
+    n6 [label="int add_r #6 0x7ffd7e2645a8  val = 2" shape=rect style=filled fillcolor=lightgreen];
+    n5 [label="int  #5 0x7ffd7e264498  val = 2" shape=rect style=filled fillcolor=gray];
+    n4 [label="int  #4 0x7ffd7e2643a8  val = 2" shape=rect style=filled fillcolor=gray];
+    n3 [label="int add_r #3 0x7ffd7e264458  val = 2" shape=rect style=filled fillcolor=lightgreen];
+  }
+  subgraph cluster_2 {
+  label = "Int mul(Int, Int)";
+  color = "blue";
+  penwidth = "3";
+  fontcolor= "red"
+  fontsize= 20
+    n42 [label="int ret #42 0x7ffd7e264628  val = 6" shape=rect style=filled fillcolor=lightgreen];
+    n41 [label="int ret #41 0x7ffd7e264498  val = 6" shape=rect style=filled fillcolor=lightgreen];
+    n40 [label="bool  #40 0x7ffd7e264498  val = 0" shape=rect style=filled fillcolor=gray];
+    n39 [label="bool  #39 0x7ffd7e264368  val = 0" shape=rect style=filled fillcolor=gray];
+    n38 [label="int  #38 0x7ffd7e264498  val = 3" shape=rect style=filled fillcolor=gray];
+    n37 [label="int  #37 0x7ffd7e2643d0  val = 1" shape=rect style=filled fillcolor=gray];
+    n36 [label="int  #36 0x7ffd7e264368  val = 3" shape=rect style=filled fillcolor=gray];
+    n31 [label="bool  #31 0x7ffd7e264498  val = 1" shape=rect style=filled fillcolor=gray];
+    n30 [label="bool  #30 0x7ffd7e264368  val = 1" shape=rect style=filled fillcolor=gray];
+    n13 [label="bool  #13 0x7ffd7e264498  val = 1" shape=rect style=filled fillcolor=gray];
+    n12 [label="bool  #12 0x7ffd7e264368  val = 1" shape=rect style=filled fillcolor=gray];
+    n11 [label="int res #11 0x7ffd7e264458  val = 6" shape=rect style=filled fillcolor=lightgreen];
+    n10 [label="int i #10 0x7ffd7e264418  val = 3" shape=rect style=filled fillcolor=lightgreen];
+    n18 [label="int  #18 0x7ffd7e264368  val = 1" shape=rect style=filled fillcolor=gray];
+    n19 [label="int  #19 0x7ffd7e2643d0  val = 1" shape=rect style=filled fillcolor=gray];
+    n20 [label="int  #20 0x7ffd7e264498  val = 1" shape=rect style=filled fillcolor=gray];
+    n21 [label="bool  #21 0x7ffd7e264368  val = 1" shape=rect style=filled fillcolor=gray];
+    n22 [label="bool  #22 0x7ffd7e264498  val = 1" shape=rect style=filled fillcolor=gray];
+    n27 [label="int  #27 0x7ffd7e264368  val = 2" shape=rect style=filled fillcolor=gray];
+    n28 [label="int  #28 0x7ffd7e2643d0  val = 1" shape=rect style=filled fillcolor=gray];
+    n29 [label="int  #29 0x7ffd7e264498  val = 2" shape=rect style=filled fillcolor=gray];
+  subgraph cluster_3 {
+  label = "Int add(Int&, Int&)";
+  color = "blue";
+  penwidth = "3";
+  fontcolor= "red"
+  fontsize= 20
+    n14 [label="int add_r #14 0x7ffd7e264328  val = 2" shape=rect style=filled fillcolor=lightgreen];
+    n15 [label="int  #15 0x7ffd7e264278  val = 2" shape=rect style=filled fillcolor=gray];
+    n16 [label="int  #16 0x7ffd7e264368  val = 2" shape=rect style=filled fillcolor=gray];
+    n17 [label="int add_r #17 0x7ffd7e264498  val = 2" shape=rect style=filled fillcolor=lightgreen];
+  }
+  subgraph cluster_4 {
+  label = "Int add(Int&, Int&)";
+  color = "blue";
+  penwidth = "3";
+  fontcolor= "red"
+  fontsize= 20
+    n23 [label="int add_r #23 0x7ffd7e264328  val = 4" shape=rect style=filled fillcolor=lightgreen];
+    n24 [label="int  #24 0x7ffd7e264278  val = 4" shape=rect style=filled fillcolor=gray];
+    n25 [label="int  #25 0x7ffd7e264368  val = 4" shape=rect style=filled fillcolor=gray];
+    n26 [label="int add_r #26 0x7ffd7e264498  val = 4" shape=rect style=filled fillcolor=lightgreen];
+  }
+  subgraph cluster_5 {
+  label = "Int add(Int&, Int&)";
+  color = "blue";
+  penwidth = "3";
+  fontcolor= "red"
+  fontsize= 20
+    n35 [label="int add_r #35 0x7ffd7e264498  val = 6" shape=rect style=filled fillcolor=lightgreen];
+    n34 [label="int  #34 0x7ffd7e264368  val = 6" shape=rect style=filled fillcolor=gray];
+    n33 [label="int  #33 0x7ffd7e264278  val = 6" shape=rect style=filled fillcolor=gray];
+    n32 [label="int add_r #32 0x7ffd7e264328  val = 6" shape=rect style=filled fillcolor=lightgreen];
+  }
+  }
+  }
+  n1 -> n3 [label="CONSTRUCT" color=red penwidth=3 style=solid arrowhead=normal];
+  n3 -> n4 [label="ADD" color=gray penwidth=1 style=dotted arrowhead=normal];
+  n2 -> n4 [label="ADD" color=gray penwidth=1 style=dotted arrowhead=normal];
+  n4 -> n5 [label="CONSTRUCT" color=green penwidth=2 style=solid arrowhead=normal];
+  n5 -> n3 [label="MOVE" color=green penwidth=2 style=solid arrowhead=normal];
+  n3 -> n6 [label="CONSTRUCT" color=green penwidth=2 style=solid arrowhead=normal];
+  n7 -> n8 [label="CONSTRUCT" color=green penwidth=2 style=solid arrowhead=normal];
+  n6 -> n9 [label="CONSTRUCT" color=green penwidth=2 style=solid arrowhead=normal];
+  n10 -> n12 [label="LT" color=gray penwidth=1 style=dotted arrowhead=normal];
+  n8 -> n12 [label="LT" color=gray penwidth=1 style=dotted arrowhead=normal];
+  n12 -> n13 [label="CONSTRUCT" color=green penwidth=2 style=solid arrowhead=normal];
+  n11 -> n14 [label="CONSTRUCT" color=red penwidth=3 style=solid arrowhead=normal];
+  n14 -> n15 [label="ADD" color=gray penwidth=1 style=dotted arrowhead=normal];
+  n9 -> n15 [label="ADD" color=gray penwidth=1 style=dotted arrowhead=normal];
+  n15 -> n16 [label="CONSTRUCT" color=green penwidth=2 style=solid arrowhead=normal];
+  n16 -> n14 [label="MOVE" color=green penwidth=2 style=solid arrowhead=normal];
+  n14 -> n17 [label="CONSTRUCT" color=green penwidth=2 style=solid arrowhead=normal];
+  n17 -> n11 [label="MOVE" color=green penwidth=2 style=solid arrowhead=normal];
+  n10 -> n18 [label="ADD" color=gray penwidth=1 style=dotted arrowhead=normal];
+  n19 -> n18 [label="ADD" color=gray penwidth=1 style=dotted arrowhead=normal];
+  n18 -> n20 [label="CONSTRUCT" color=green penwidth=2 style=solid arrowhead=normal];
+  n20 -> n10 [label="MOVE" color=green penwidth=2 style=solid arrowhead=normal];
+  n10 -> n21 [label="LT" color=gray penwidth=1 style=dotted arrowhead=normal];
+  n8 -> n21 [label="LT" color=gray penwidth=1 style=dotted arrowhead=normal];
+  n21 -> n22 [label="CONSTRUCT" color=green penwidth=2 style=solid arrowhead=normal];
+  n11 -> n23 [label="CONSTRUCT" color=red penwidth=3 style=solid arrowhead=normal];
+  n23 -> n24 [label="ADD" color=gray penwidth=1 style=dotted arrowhead=normal];
+  n9 -> n24 [label="ADD" color=gray penwidth=1 style=dotted arrowhead=normal];
+  n24 -> n25 [label="CONSTRUCT" color=green penwidth=2 style=solid arrowhead=normal];
+  n25 -> n23 [label="MOVE" color=green penwidth=2 style=solid arrowhead=normal];
+  n23 -> n26 [label="CONSTRUCT" color=green penwidth=2 style=solid arrowhead=normal];
+  n26 -> n11 [label="MOVE" color=green penwidth=2 style=solid arrowhead=normal];
+  n10 -> n27 [label="ADD" color=gray penwidth=1 style=dotted arrowhead=normal];
+  n28 -> n27 [label="ADD" color=gray penwidth=1 style=dotted arrowhead=normal];
+  n27 -> n29 [label="CONSTRUCT" color=green penwidth=2 style=solid arrowhead=normal];
+  n29 -> n10 [label="MOVE" color=green penwidth=2 style=solid arrowhead=normal];
+  n10 -> n30 [label="LT" color=gray penwidth=1 style=dotted arrowhead=normal];
+  n8 -> n30 [label="LT" color=gray penwidth=1 style=dotted arrowhead=normal];
+  n30 -> n31 [label="CONSTRUCT" color=green penwidth=2 style=solid arrowhead=normal];
+  n11 -> n32 [label="CONSTRUCT" color=red penwidth=3 style=solid arrowhead=normal];
+  n32 -> n33 [label="ADD" color=gray penwidth=1 style=dotted arrowhead=normal];
+  n9 -> n33 [label="ADD" color=gray penwidth=1 style=dotted arrowhead=normal];
+  n33 -> n34 [label="CONSTRUCT" color=green penwidth=2 style=solid arrowhead=normal];
+  n34 -> n32 [label="MOVE" color=green penwidth=2 style=solid arrowhead=normal];
+  n32 -> n35 [label="CONSTRUCT" color=green penwidth=2 style=solid arrowhead=normal];
+  n35 -> n11 [label="MOVE" color=green penwidth=2 style=solid arrowhead=normal];
+  n10 -> n36 [label="ADD" color=gray penwidth=1 style=dotted arrowhead=normal];
+  n37 -> n36 [label="ADD" color=gray penwidth=1 style=dotted arrowhead=normal];
+  n36 -> n38 [label="CONSTRUCT" color=green penwidth=2 style=solid arrowhead=normal];
+  n38 -> n10 [label="MOVE" color=green penwidth=2 style=solid arrowhead=normal];
+  n10 -> n39 [label="LT" color=gray penwidth=1 style=dotted arrowhead=normal];
+  n8 -> n39 [label="LT" color=gray penwidth=1 style=dotted arrowhead=normal];
+  n39 -> n40 [label="CONSTRUCT" color=green penwidth=2 style=solid arrowhead=normal];
+  n11 -> n41 [label="CONSTRUCT" color=red penwidth=3 style=solid arrowhead=normal];
+  n41 -> n42 [label="CONSTRUCT" color=green penwidth=2 style=solid arrowhead=normal];
+  n42 -> n43 [label="ASSIGN" color=gray penwidth=1 style=dotted arrowhead=normal];
+}

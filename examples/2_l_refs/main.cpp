@@ -3,7 +3,7 @@
 
 typedef Tracked<int> Int;
 
-Int add(Int a, Int b) {
+Int add(Int &a, Int &b) {
     INIT_FUNC()
     TRACK_VAR(int, add_r, a);
     add_r = add_r + b;

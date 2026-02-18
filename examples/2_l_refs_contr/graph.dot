@@ -1,0 +1,33 @@
+digraph G {
+  rankdir=LR;
+  node [shape=rect style=filled fontname="Courier"];
+  splines=polyline;
+  nodesep=1.0;
+  ranksep=1.5;
+  subgraph cluster_0 {
+  label = "Global Scope";
+  color = "blue";
+  penwidth = "3";
+  fontcolor= "red"
+  fontsize= 20
+  subgraph cluster_1 {
+  label = "int main()";
+  color = "blue";
+  penwidth = "3";
+  fontcolor= "red"
+  fontsize= 20
+    n3 [label="int  #3 0x7ffeeabbe2a8  val = 20" shape=rect style=filled fillcolor=gray];
+    n1 [label="int x #1 0x7ffeeabbe2a8  val = 20" shape=rect style=filled fillcolor=lightgreen];
+  subgraph cluster_2 {
+  label = "void f(Int&)";
+  color = "blue";
+  penwidth = "3";
+  fontcolor= "red"
+  fontsize= 20
+    n2 [label="int  #2 0x7ffeeabbe208  val = 20" shape=rect style=filled fillcolor=gray];
+  }
+  }
+  }
+  n2 -> n1 [label="MOVE" color=green penwidth=2 style=solid arrowhead=normal];
+  n1 -> n3 [label="ASSIGN" color=gray penwidth=1 style=dotted arrowhead=normal];
+}

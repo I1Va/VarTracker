@@ -169,7 +169,7 @@ private:
     void print_clusters(std::ostream &stream) const {
         std::vector<std::vector<const Node *>> cluster_nodes(scopes_storage.size());
         std::vector<std::vector<size_t>> clusters_graph(scopes_storage.size());
-        
+
         for (auto &[node_id, node] : nodes_) {
             cluster_nodes[node.get_scope()].push_back(&node);
         }
